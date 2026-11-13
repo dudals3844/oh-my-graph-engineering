@@ -1,0 +1,12 @@
+{
+  "name": "oh-my-graph-engineering",
+  "owner": {"name": "Youngminchoi"},
+  "metadata": {"description": "omge: graph-enforced workflows for Claude Code."},
+  "plugins": [
+    {
+      "name": "omge",
+      "source": "./",
+      "description": "Graph-enforced workflows: checked node graphs, step-skipping hooks and retro-driven graph library."
+    }
+  ]
+}

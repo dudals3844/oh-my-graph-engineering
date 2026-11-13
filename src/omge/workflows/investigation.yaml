@@ -1,0 +1,93 @@
+# A question to answer, with or without an issue: no code change ships from it.
+# Findings go into a notes file outside the repository (`{notes}`, e.g. the session
+# scratchpad); a citation is `path:line` (relative to the task dir) or a URL.
+# `on_fail`: verify sends a claim it could not back up to collect.
+type: investigation
+match: investigation — investigate the cause and report with evidence
+params:
+  notes: '^/[A-Za-z0-9._/-]+\.md$'
+nodes:
+  - id: collect
+    agent: omge:explorer
+    agent_mode: recommend
+    timeout: 30
+    on_fail: retry
+    do: >-
+      Gather evidence — read code, logs and data. The read-only explorer returns each claim with its
+      source (`path:line` or URL); this session writes them into the notes file. wf_set notes=<absolute
+      path of the notes file>.
+    check: |
+      python3 - {notes} 3 <<'PY'
+      import os, re, sys
+      notes, need, bounded = sys.argv[1], int(sys.argv[2]), len(sys.argv) > 3
+      text = open(notes).read() if os.path.isfile(notes) else ''
+      if not text.strip():
+          sys.exit('%s is missing or empty' % notes)
+      urls = set(re.findall(r'https?://\S+', text))
+      cites = set()
+      for path, line in re.findall(r'(?<![\w/.:-])([\w./-]+):([0-9]+)', re.sub(r'https?://\S+', ' ', text)):
+          if ('/' in path or '.' in path) and not re.fullmatch(r'[\d.]+', path) or os.path.isfile(path):
+              line = line.lstrip('0') or '0'  # past 18 digits is out of range, not an int()
+              cites.add((path, int(line) if len(line) <= 18 else 0))
+      bad = [c for c in sorted(cites) if bounded and not (
+          os.path.isfile(c[0]) and 1 <= c[1] <= sum(1 for _ in open(c[0], 'rb')))]
+      for path, line in bad:
+          print('unresolved citation %s:%d' % (path, line), file=sys.stderr)
+      if len(cites) + len(urls) < need:
+          sys.exit('%s cites %d sources (need %d: path:line or URL)' % (notes, len(cites) + len(urls), need))
+      sys.exit(1 if bad else 0)
+      PY
+
+  - id: verify
+    agent: omge:reviewer
+    agent_mode: recommend
+    after: [collect]
+    timeout: 60
+    on_fail: collect
+    do: >-
+      Check each claim in the notes against its source. Every cited `path:line` must exist in the
+      repository now. The check drops URLs (`https?://\S+`, counted as sources) and then reads
+      `<path>:<line>` (line numbers are ASCII digits) where `<path>` is `[\w./-]+` not preceded by a word char, `/`, `.`, `:` or `-`;
+      it is a citation if it has a `/` or a `.` (a dotted IP is not) or names an existing file.
+      Each citation must name an existing file with `1 <= line <= its line count`; no citation and
+      no URL fails. If a claim is unsupported or wrong, wf_fail(verify, reason) — back to collect
+      to gather more.
+    check: |
+      python3 - {notes} 1 bounded <<'PY'
+      import os, re, sys
+      notes, need, bounded = sys.argv[1], int(sys.argv[2]), len(sys.argv) > 3
+      text = open(notes).read() if os.path.isfile(notes) else ''
+      if not text.strip():
+          sys.exit('%s is missing or empty' % notes)
+      urls = set(re.findall(r'https?://\S+', text))
+      cites = set()
+      for path, line in re.findall(r'(?<![\w/.:-])([\w./-]+):([0-9]+)', re.sub(r'https?://\S+', ' ', text)):
+          if ('/' in path or '.' in path) and not re.fullmatch(r'[\d.]+', path) or os.path.isfile(path):
+              line = line.lstrip('0') or '0'  # past 18 digits is out of range, not an int()
+              cites.add((path, int(line) if len(line) <= 18 else 0))
+      bad = [c for c in sorted(cites) if bounded and not (
+          os.path.isfile(c[0]) and 1 <= c[1] <= sum(1 for _ in open(c[0], 'rb')))]
+      for path, line in bad:
+          print('unresolved citation %s:%d' % (path, line), file=sys.stderr)
+      if len(cites) + len(urls) < need:
+          sys.exit('%s cites %d sources (need %d: path:line or URL)' % (notes, len(cites) + len(urls), need))
+      sys.exit(1 if bad else 0)
+      PY
+    pitfalls:
+      - Cite a file outside the repository by URL or command output, not by path — relative paths resolve against the task dir
+
+  - id: report
+    after: [verify]
+    timeout: 30
+    on_fail: retry
+    do: >-
+      Write a `## Conclusion` section in the notes (the answer, confidence, remaining uncertainty)
+      and report it to the user as is. If there is an issue, post it there as a comment too.
+    check: |
+      awk '/^## Conclusion/{s=1; next} /^## /{s=0} s && NF {n++} END {exit !(n > 0)}' {notes}
+
+  - id: retro
+    after: [report]
+    do: >-
+      Call wf_retro() for this type's accumulated evidence and suggestions, then record a verdict
+      (with no issue, the record is the retro). wf supplies the check.

@@ -1,0 +1,98 @@
+# A code change with or without an issue: plan → implement → test/lint → independent
+# review → deliver (commit, push, PR). Checks run under bash in the task dir.
+# `on_fail`: a failed test or review goes back to implement; a wrong plan goes back to plan.
+# `carry: code`: a passed review carries over a later commit whose code is unchanged.
+type: code-implementation
+match: code change — plan implement test lint review commit PR
+optional_issue: true
+params:
+  plan: '^/[A-Za-z0-9._/-]+\.md$'
+  test_cmd: '^[^\n]+$'
+  review: '^/[A-Za-z0-9._/-]+\.md$'
+nodes:
+  - id: plan
+    agent: omge:planner
+    agent_mode: recommend
+    timeout: 30
+    on_fail: retry
+    do: >-
+      Write a short plan (goal, files to touch, test to add, done condition) to a markdown file
+      outside the repository (e.g. the session scratchpad); use the omge:writing-a-plan skill for
+      a multi-file change. wf_set plan=<absolute path of the plan file>.
+    check: |
+      f={plan}
+      test -s "$f" || { echo "missing $f" >&2; exit 1; }
+      grep -qE '^#+ ' "$f" || { echo "$f has no markdown heading" >&2; exit 1; }
+
+  - id: implement
+    agent: omge:implementer
+    agent_mode: recommend
+    after: [plan]
+    timeout: 60
+    on_fail: plan
+    on_fail_max: 2
+    do: >-
+      Make the smallest change that meets the plan and commit it on a branch (clean working
+      tree). If the plan turns out wrong, wf_fail(implement, reason) to go back to plan.
+    check: |
+      base=$(git symbolic-ref -q --short refs/remotes/origin/HEAD || echo main)
+      ahead=$(git rev-list --count "$base..HEAD") || exit 1
+      [ "$ahead" -gt 0 ] || { echo "no commits ahead of $base" >&2; exit 1; }
+      dirty=$(git status --porcelain --ignore-submodules=all)
+      [ -z "$dirty" ] || { echo "uncommitted changes:"; echo "$dirty"; exit 1; } >&2
+    pitfalls:
+      - Coming back from test or review, make a new commit — an old commit passes this check unchanged
+
+  - id: test
+    after: [implement]
+    timeout: 900
+    on_fail: implement
+    do: >-
+      wf_set test_cmd="<the repository's test and lint command>" (e.g. `uv run pytest -q && uv run
+      ruff check .`, `npm test && npm run lint`) covering every module the change touches, then run
+      it. On failure, wf_fail(test, reason) — back to implement.
+    check: |
+      bash -c {test_cmd}
+    pitfalls:
+      - Do not weaken the command (fewer paths, skipped tests) to make it pass
+
+  - id: review
+    after: [test]
+    agent: omge:reviewer
+    agent_mode: require
+    carry: code
+    timeout: 60
+    on_fail: implement
+    do: >-
+      Delegate an independent review of the committed HEAD to a subagent (Agent tool, not a fork).
+      It writes its findings to a markdown file outside the repository and, only when there is no
+      blocker, ends it with the two lines `Verdict: pass` and `Reviewed SHA: <full HEAD sha>`.
+      wf_set review=<absolute path of that file>. On blockers, wf_fail(review, reason) — back to
+      implement.
+    check: |
+      f={review}
+      test -s "$f" || { echo "missing $f" >&2; exit 1; }
+      grep -qx 'Verdict: pass' "$f" || { echo "$f has no 'Verdict: pass' line" >&2; exit 1; }
+      grep -qx "Reviewed SHA: $(git rev-parse HEAD)" "$f" || {
+        echo "$f does not name HEAD $(git rev-parse HEAD) — review again after the last commit" >&2; exit 1; }
+    pitfalls:
+      - A self-review is not a review
+      - A review counts for the HEAD it names; a later code commit needs a new review
+
+  - id: deliver
+    after: [review]
+    timeout: 60
+    on_fail: retry
+    do: >-
+      Push the branch to its upstream and open a PR if the repository uses them; send the link to
+      the user right away. Merging stays the user's decision.
+    check: |
+      [ -z "$(git status --porcelain --ignore-submodules=all)" ] || { echo "uncommitted changes" >&2; exit 1; }
+      up=$(git rev-parse -q --verify @\{u\}) || { echo "branch has no upstream — push with -u" >&2; exit 1; }
+      [ "$up" = "$(git rev-parse HEAD)" ] || { echo "HEAD is not pushed to its upstream" >&2; exit 1; }
+
+  - id: retro
+    after: [deliver]
+    do: >-
+      Call wf_retro() for this type's accumulated evidence and suggestions, then record a verdict
+      (no_change|update_type|new_type). wf supplies the check.

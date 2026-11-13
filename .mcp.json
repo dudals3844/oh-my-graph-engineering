@@ -1,0 +1,15 @@
+{
+  "mcpServers": {
+    "wf": {
+      "type": "stdio",
+      "command": "uv",
+      "args": [
+        "run",
+        "--project",
+        "${CLAUDE_PLUGIN_ROOT}",
+        "--quiet",
+        "wf-mcp"
+      ]
+    }
+  }
+}

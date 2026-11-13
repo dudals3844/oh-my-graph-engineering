@@ -1,0 +1,135 @@
+[English](README.md) | [Korean](README.ko.md) | [Japanese](README.ja.md) | [Chinese](README.zh-CN.md) | [Spanish](README.es.md)
+
+<h1 align="center">omge</h1>
+
+<p align="center"><strong>oh-my-graph-engineering</strong>: ejecuta el trabajo de Claude Code como un grafo verificado y deja que cada tarea mejore la siguiente.</p>
+
+<p align="center">
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue?style=flat-square" alt="License: MIT"></a>
+  <img src="https://img.shields.io/badge/version-0.1.0-informational?style=flat-square" alt="Version 0.1.0">
+  <img src="https://img.shields.io/badge/Claude%20Code-plugin-d97757?style=flat-square" alt="Claude Code plugin">
+</p>
+
+![omge demo](docs/demo.gif)
+
+> Los mensajes en tiempo de ejecución están en inglés (por defecto) o en coreano, según `OMGE_LANG`.
+
+## Por qué
+
+Las tareas largas se desvían: se salta un paso de pruebas, una revisión queda "hecha" sin revisor, la sesión
+se detiene a medias. omge convierte una tarea en una lista de nodos, cada uno con un `check` de shell que debe
+pasar antes de cerrarse. Los hooks impiden que Claude se salte nodos o se detenga antes de tiempo, y una
+retrospectiva (retro) al final devuelve lo aprendido a una biblioteca reutilizable de tipos de workflow.
+
+## Cómo funciona
+
+```mermaid
+flowchart LR
+    T[Plantilla o grafo puntual] --> S[wf_start]
+    S --> N[Siguiente nodo]
+    N --> C{check pasa?}
+    C -- no --> N
+    C -- sí --> D{quedan nodos?}
+    D -- sí --> N
+    D -- no --> R[wf_retro]
+    R --> L[(Biblioteca de grafos)]
+    L --> T
+    H[Hooks] -. bloquean saltar un nodo o parar antes .-> N
+```
+
+## Características
+
+- **Nodos verificados**: un nodo con `check` de shell se cierra con `wf_complete` solo cuando el check termina con 0; un nodo `kind: human` sin check se cierra con la evidencia aportada. `on_fail` decide qué pasa después.
+- **Hooks que imponen el grafo**: los hooks SessionStart, UserPromptSubmit, Stop, PreToolUse y PostToolUse bloquean pasos saltados y paradas tempranas.
+- **Biblioteca guiada por retros**: un nodo `retro` se ejecuta al final de la tarea y puede guardar un grafo mejorado como tipo de la biblioteca, versionado en git; puede omitirse o cerrarse automáticamente cuando no hay nada que mejorar.
+- **Agentes por rol**: explorer, implementer, reviewer y planner, cada uno fijado a un alias de modelo que puedes cambiar.
+- **Skills incluidas**: `/omge:setup`, `/omge:graph`, `omge:writing-a-plan` y `omge:improving-skills`.
+- Mensajes en tiempo de ejecución en **inglés o coreano** (`OMGE_LANG`).
+
+## Inicio rápido
+
+```bash
+claude plugin marketplace add dudals3844/oh-my-graph-engineering
+claude plugin install omge@oh-my-graph-engineering
+```
+
+Después ejecuta `/omge:setup` en Claude Code. Comprueba que [uv](https://pypi.org/project/uv/) está instalado
+(los hooks y el servidor MCP `wf` se ejecutan con él) y ofrece instalar el plugin opcional ponytail.
+
+> [!WARNING]
+> **Hooks duplicados:** el plugin registra sus propios hooks SessionStart, UserPromptSubmit, Stop, PreToolUse y
+> PostToolUse. Si también configuraste comandos `wf hook ...` en un `settings.json`, elimínalos, o cada hook se
+> ejecutará dos veces.
+
+## Un grafo
+
+```yaml
+type: lint-fix
+match: fix lint errors and commit
+optional_issue: true
+nodes:
+  - id: fix
+    do: Fix every error `ruff check .` reports and commit.
+    check: uvx ruff check . && [ -z "$(git status --porcelain)" ]
+    on_fail: retry
+  - id: review
+    after: [fix]
+    agent: omge:reviewer
+    do: Delegate an independent review of HEAD.
+    kind: human
+  - id: retro
+    after: [review]
+    do: Call wf_retro() and record a verdict.
+```
+
+Claude inicia una tarea con `wf_start` (un tipo de la biblioteca, o `type="new"` con un grafo puntual), cierra
+nodos con `wf_complete` y termina con `wf_retro`. `/omge:graph` explica cada campo de nodo, los params, las
+variables de entorno de `check` y cómo un grafo puntual se convierte en un tipo de la biblioteca.
+
+## Plantillas incluidas
+
+| Tipo | Para |
+|---|---|
+| `code-implementation` | plan → implement → test → review → push/PR, con o sin issue |
+| `investigation` | reunir evidencia citada → verificar citas → informar una conclusión |
+| `issue-resolution` | un issue de GitHub a través de spec, scope review, plan, implement, test, review, PR, CI, merge, cleanup |
+
+## Agentes
+
+| Agente | Alias de modelo | Rol |
+|---|---|---|
+| `omge:explorer` | `haiku` | búsqueda de solo lectura con citas `path:line` |
+| `omge:implementer` | `sonnet` | hace y confirma (commit) el cambio planificado |
+| `omge:reviewer` | `opus` | revisión independiente que termina en `Verdict: pass` / `Reviewed SHA: <sha>` |
+| `omge:planner` | `fable` | escribe el plan de implementación |
+
+Para usar otro modelo, copia `agents/<name>.md` en `~/.claude/agents/` o en `.claude/agents/` de un proyecto,
+dale un nuevo `name` y otro alias en `model:`, y haz referencia a él en el campo `agent:` de un nodo
+(p. ej. `agent: reviewer-sonnet`).
+
+## Skills
+
+| Skill | Uso |
+|---|---|
+| `/omge:setup` | comprueba uv, avisa de hooks duplicados, ofrece ponytail |
+| `/omge:graph` | referencia para escribir grafos y tipos de la biblioteca |
+| `omge:writing-a-plan` | la usan los nodos plan |
+| `omge:improving-skills` | corrige tus skills en `~/.claude/skills` a partir de la evidencia de la retro |
+
+## Configuración
+
+| Variable | Efecto |
+|---|---|
+| `OMGE_LANG` | idioma de los mensajes: `en` (por defecto) o `ko`; sin ella, el locale se lee de `LC_ALL`, `LC_MESSAGES` o `LANG` (p. ej. `ko_KR.UTF-8`) |
+| `WF_DB` | ruta de la base de datos de tareas (por defecto `~/.local/share/omge/wf.db`) |
+| `WF_LIBRARY` | ruta de la biblioteca de tipos, un repositorio git (por defecto `~/.local/share/omge/library/`) |
+
+## Desarrollo
+
+```bash
+uv sync --locked --extra dev && uv run pytest -q
+```
+
+## Licencia
+
+MIT, ver [LICENSE](LICENSE).

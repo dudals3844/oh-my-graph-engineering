@@ -1,0 +1,276 @@
+# An issue-driven code change in a GitHub repository. Checks run with
+# cwd = the task's checkout, under bash, with WF_ISSUE / WF_BRANCH / WF_DIR / WF_SINCE
+# from wf; the repository is read off WF_ISSUE, never written here. gh is REST only, but for `gh pr checks`.
+# `on_fail`: where `wf_fail` sends a failed checked node — test, review and CI failures
+# go back to implement and walk test → review → pr → ci again.
+# Flow: claim → spec → scope_review → (plan → implement | implement) → test → reviews.
+# `carry: code`: a review that passed carries over a later commit with the same code.
+type: issue-resolution
+match: issue code change — implement test review PR CI merge
+params:
+  pr: '^[0-9]+$'
+  complexity: '^(simple|complex)$'
+  test_scope: '^\.?[A-Za-z0-9_][A-Za-z0-9_.-]*(/\.?[A-Za-z0-9_][A-Za-z0-9_.-]*)*( \.?[A-Za-z0-9_][A-Za-z0-9_.-]*(/\.?[A-Za-z0-9_][A-Za-z0-9_.-]*)*)*$'
+  pr_repo: '^([A-Za-z0-9._-]+/[A-Za-z0-9._-]+)?$'
+nodes:
+  - id: claim
+    timeout: 30
+    on_fail: retry
+    do: >-
+      Assign the issue, and create the branch and worktree as <repo>-<issue number>.
+    check: |
+      r="${WF_ISSUE#https://github.com/}"; repo="${r%/issues/*}"; repo="${repo##*/}"; n="${WF_ISSUE##*/}"
+      case "$WF_BRANCH" in *"$repo-$n"|*"$repo-$n"[!0-9]*) ;; *) echo "branch $WF_BRANCH lacks $repo-$n" >&2; exit 1;; esac
+      gh api "repos/$r" --jq '.assignees | length > 0' | grep -qx true
+    pitfalls:
+      - Renaming a branch closes its open PR — start with <repo>-<issue number> from the beginning
+
+  - id: spec
+    after: [claim]
+    timeout: 30
+    on_fail: retry
+    do: >-
+      Write a SPEC (the goal and a `done condition`) in the issue body or a comment. Link the plan
+      document if there is one. Judge the complexity and wf_set complexity=simple|complex — complex
+      (goes through plan) if it spans several files or services, has design choices, creates a new
+      module, schema or external contract, or is hard to undo; otherwise simple (straight to
+      implement).
+    check: |
+      r="${WF_ISSUE#https://github.com/}"
+      { gh api "repos/$r" --jq '.body // ""'; gh api --paginate "repos/$r/comments" --jq '.[].body'; } \
+        | grep -qiE 'done[ -]condition|^#+ *spec'
+
+  - id: scope_review
+    after: [spec]
+    agent: omge:reviewer
+    agent_mode: recommend
+    timeout: 30
+    on_fail: spec
+    do: >-
+      An agent other than the author (an independent subagent) checks the SPEC and the complexity
+      call against the original issue and cuts over-engineering. After this node becomes ready, it
+      posts the result as an issue comment whose first line starts with `scope`, and, with no
+      findings, makes the last line `Verdict: pass`. With findings, comment, then
+      wf_fail(scope_review, reason) — back to spec to shrink the SPEC.
+    check: |
+      gh api --paginate "repos/${WF_ISSUE#https://github.com/}/comments" --jq '.[]
+        | select((.body | split("\n")[0] | test("^scope([[:space:]]|$)"; "i"))
+                 and ([.body | split("\n")[] | select(test("\\S"))] | last
+                      | test("^ *verdict: *pass *\r?$"; "i"))
+                 and .created_at >= env.WF_READY_SINCE) | .id' | grep -q .
+    pitfalls:
+      - A comment posted before the node became ready does not count
+      - Only the comment's last line counts as the verdict
+      - A self-review is not a review
+    next:
+      - {to: plan, label: complex → plan, when: '[ "{complexity}" = complex ]'}
+      - {to: implement, label: simple}
+
+  - id: plan
+    agent: omge:planner
+    agent_mode: recommend
+    after: [scope_review]
+    timeout: 60
+    on_fail: spec
+    do: >-
+      Make a PLAN sized to the work's complexity and design uncertainty (per the omge:writing-a-plan
+      skill). Do not use Claude's built-in Plan Mode (EnterPlanMode/ExitPlanMode), --interactive, or
+      nested workflow runs, and do not add an execution-mode choice or an approval wait to scope that
+      is already approved. Keep the needed requirement checks and the merge/operations approval
+      boundaries. When the plan is finished, post a final receipt on the issue whose first line is
+      `PLAN done`. A progress comment or a draft plan/ link alone does not complete it; link the
+      final document path in the receipt body. Then go on to the next wf node within the approved
+      scope. If the SPEC turns out wrong while planning, wf_fail(plan, reason).
+    check: |
+      set -o pipefail
+      gh api --paginate "repos/${WF_ISSUE#https://github.com/}/comments" --jq ".[]
+        | (select((.body | split(\"\\n\")[0] | test(\"^scope([[:space:]]|$)\"; \"i\"))
+                  and ([.body | split(\"\\n\")[] | select(test(\"\\\\S\"))] | last
+                       | test(\"^ *verdict: *pass *\\r?$\"; \"i\")))
+           | \"S \" + .created_at),
+          (select(.body | split(\"\\n\")[0] | test(\"^PLAN done\\r?$\"))
+           | \"P \" + .created_at)" \
+        | awk 'BEGIN {s=""; p=""} $1=="S" && $2>s {s=$2} $1=="P" && $2>p {p=$2} END {if (s=="") exit 1; exit !(p>s)}'
+    pitfalls:
+      - A `PLAN done` posted before the last passing scope comment does not count — post a new receipt after it
+
+  - id: implement
+    agent: omge:implementer
+    agent_mode: recommend
+    after: [plan]
+    timeout: 60
+    on_fail: spec
+    on_fail_max: 2
+    do: >-
+      Implement with the smallest change and commit it (clean working tree). If the SPEC turns out
+      wrong while implementing, wf_fail(implement, reason) goes back to spec. With
+      complexity=simple, a diff over 5 files or 300 lines fails the check — go back to spec and
+      judge it complex.
+    check: |
+      base=$(git symbolic-ref -q --short refs/remotes/origin/HEAD || echo origin/main)
+      ahead=$(git rev-list --count "$base..HEAD") || exit 1
+      [ "$ahead" -gt 0 ] || { echo "no commits ahead of $base" >&2; exit 1; }
+      dirty=$(git status --porcelain --ignore-submodules=all)
+      [ -z "$dirty" ] || { echo "uncommitted changes:"; echo "$dirty"; exit 1; } >&2
+      read -r files lines < <(git diff --numstat "$base...HEAD" -- . ':!*.lock' | awk '{f++; l+=$1+$2} END {print f+0, l+0}')
+      if [ {complexity} = simple ] && { [ "$files" -gt 5 ] || [ "$lines" -gt 300 ]; }; then
+        echo "judged simple, but the diff is ${files} files and ${lines} lines (limit 5 files, 300 lines) —" \
+          "wf_fail(implement, reason) to go back to spec and judge complexity=complex" >&2; exit 1; fi
+    pitfalls:
+      - Coming back from test, review or ci, always make a new commit — the check only sees that a commit exists, so the old commit passes and moves on without a fix
+      - A worktree's .venv symlink is not matched by the `.venv/` (directory) pattern in .gitignore and breaks the check as `?? .venv` — do not edit .gitignore; add `.venv` to `$(git rev-parse --git-path info/exclude)`
+
+  - id: test
+    after: [implement]
+    timeout: 900
+    on_fail: implement
+    do: >-
+      wf_set test_scope=<relative test paths, space separated> to cover every test that uses the
+      changed modules, and run them locally (e.g. tests/unit tests/integration; the whole suite is
+      the repository's testpaths). The param takes path argv only, not commands or options. The
+      default command is the pytest below; if the repository's real command, markers, extra lanes
+      or ignore options differ, change the check with wf_revise to record the scope. If there is a
+      Ruff config, changed .py files are linted too. Do not auto-install dependencies or change the
+      lock. On failure, wf_fail(test, reason) — back to implement.
+    check: |
+      set -e -o pipefail
+      if [ -x .venv/bin/python ]; then py=.venv/bin/python; else py=python3; fi
+      read -r -a paths <<< {test_scope}
+      "$py" -m pytest -q -x -p no:cacheprovider "${paths[@]}" 2>&1 | tail -n 40
+      if [ -f ruff.toml ] || [ -f .ruff.toml ] || grep -qs '^\[tool\.ruff' pyproject.toml; then
+        base=$(git symbolic-ref -q --short refs/remotes/origin/HEAD || echo origin/main)
+        changed=$(git diff --relative --name-only --diff-filter=d "$base...HEAD" -- '*.py')
+        if [ -n "$changed" ]; then
+          mapfile -t files <<< "$changed"
+          "$py" -m ruff check -- "${files[@]}"
+        fi
+      fi
+    pitfalls:
+      - Coming back to test from implement, test_scope is cleared — wf_set test_scope again before the check
+      - In a worktree `uv run` can break uv.lock — make .venv a symlink to local disk
+      - If several test directories use the changed modules, include them all — running only one misses breakage in the others
+      - If the tests take longer than the timeout (900s), raise it with wf_revise — a timeout counts as a failure
+      - Do not claim the default pytest verified every lane of the repository — record the command actually run
+
+  - id: review
+    agent: omge:reviewer
+    agent_mode: recommend
+    after: [test]
+    carry: code
+    timeout: 60
+    on_fail: implement
+    do: >-
+      Hand an independent review to an agent other than the author. It posts the result on the issue as a comment starting with `review <HEAD commit sha>`, and with no blocker includes a `Verdict: pass` line.
+      With blockers, post that comment, then wf_fail(review, reason) — back to implement to fix it and walk again from test.
+    check: |
+      export HEAD_SHA=$(git rev-parse HEAD)
+      gh api --paginate "repos/${WF_ISSUE#https://github.com/}/comments" --jq '.[]
+        | ([.body | split("\n")[0] | capture("^review[[:blank:]]+(?<s>[0-9a-f]{7,40})([[:space:]]|$)"; "i")][0].s // "" | ascii_downcase) as $s
+        | select($s != "" and (env.HEAD_SHA | startswith($s))
+                 and (.body | test("verdict: *pass *($|\n)"; "i"))) | .id' | grep -q . || {
+        echo "no review receipt: no comment whose first line is 'review <7-40 char prefix of HEAD $HEAD_SHA>' with a 'Verdict: pass' line — the reviewer has not posted yet, or HEAD changed since" >&2; exit 1; }
+    pitfalls:
+      - A review counts only for the HEAD it saw — more commits need a new review
+      - A self-review is not a review
+
+  - id: pr
+    after: [review]
+    timeout: 60
+    on_fail: retry
+    do: >-
+      Push and open a PR. Reference the issue in the body (`Closes #<issue>` if it resolves the whole issue, no closing keyword if partial). wf_set
+      pr=<number>. If the PR lives in a different repository from the issue, wf_set pr_repo=<owner/repo> and
+      put the full issue URL in the body — in another repository `#<issue>` names that repository's issue. Left empty, it is the issue's repository. Send the PR link to the user as soon as it is up.
+      Fix PR-step failures (API errors, wrong body, branch or number) here and retry.
+    check: |
+      set -o pipefail
+      i="${WF_ISSUE#https://github.com/}"; i="${i%/issues/*}"
+      r={pr_repo}; [ -n "$r" ] || r="$i"
+      export HEAD_SHA=$(git rev-parse HEAD) N="${WF_ISSUE##*/}" SAME=no
+      [ "$r" = "$i" ] && SAME=yes
+      # Cross-repo, a bare #N names the PR repo's issue N: require the issue URL and refuse a bare closing keyword.
+      gh api "repos/$r/pulls/{pr}" --jq '
+        .head.ref == env.WF_BRANCH and .head.sha == env.HEAD_SHA
+        and ((.body // "") | gsub("`[^`]*`"; "")
+             | if env.SAME == "yes" then test("#" + env.N + "([^0-9]|$)|" + env.WF_ISSUE)
+               else contains(env.WF_ISSUE)
+                    and (test("(?i)\\b(close[sd]?|fix(e[sd])?|resolve[sd]?):? +#" + env.N + "([^0-9]|$)") | not)
+               end)
+      ' | grep -qx true
+    pitfalls:
+      - A closing keyword wrapped in backticks or written as a bare `repo#n` (no owner) does not close the issue — `#n`, `owner/repo#n` and the full issue URL do; one inside a negated sentence still closes it
+      - Local HEAD and the PR head must match — do not forget to push
+
+  - id: ci
+    after: [pr]
+    timeout: 60
+    on_fail: implement
+    do: >-
+      Check that CI on the PR head has all finished green. If it is still running, wait (in the background). If it ends red, wf_fail(ci, reason) — back to implement.
+      A PR that still reports no checks 10 minutes after its head commit has no CI — then the local test node is the gate.
+    check: |
+      r={pr_repo}; [ -n "$r" ] || { r="${WF_ISSUE#https://github.com/}"; r="${r%/issues/*}"; }
+      sha=$(git rev-parse HEAD)
+      head=$(gh api "repos/$r/pulls/{pr}" --jq .head.sha) || exit 1
+      [ "$head" = "$sha" ] || { echo "PR head $head != local HEAD $sha" >&2; exit 1; }
+      # gh pr checks covers check runs and commit statuses: 0 all passed, 8 pending, 1 failed or none reported.
+      out=$(gh pr checks {pr} -R "$r" 2>&1); rc=$?
+      printf '%s\n' "$out"
+      [ "$rc" = 0 ] && exit 0
+      [ "$rc" = 8 ] && { echo "CI on $sha has not finished" >&2; exit 75; }
+      printf '%s\n' "$out" | grep -qi 'no checks reported' || exit 1
+      # ponytail: 10-min grace from the head's committer date; CI that takes longer to register, or an old commit pushed late, counts as no CI.
+      age=$(gh api "repos/$r/commits/$sha" --jq '(now - (.commit.committer.date | fromdate)) | floor') || exit 1
+      [ "$age" -ge 600 ] || { echo "no checks yet on $sha (${age}s old): waiting for CI to register" >&2; exit 75; }
+      echo "no checks on $sha after 10 minutes: no CI for this PR, the local test node is the gate"
+    pitfalls:
+      - A green job conclusion is not proof of a deploy — also check whether every downstream job was skipped
+
+  - id: merge
+    kind: human
+    after: [ci]
+    timeout: 60
+    on_fail: implement
+    do: >-
+      The user reviews and merges. The agent merges only when the user explicitly approves the merge.
+      Waiting for the user's approval or for CI is not a failure — do not wf_fail. Only when the user
+      asks for a code change, or the merge needs a code fix (a conflict, say), wf_fail(merge, reason) — back to implement.
+    check: |
+      set -o pipefail
+      r={pr_repo}; [ -n "$r" ] || { r="${WF_ISSUE#https://github.com/}"; r="${r%/issues/*}"; }
+      gh api "repos/$r/pulls/{pr}" --jq '.merged and .head.ref == env.WF_BRANCH' | grep -qx true
+    pitfalls:
+      - Even after the merge, delete the worktree and branch only in cleanup — the ci and merge checks match the PR by the dir's branch (WF_BRANCH) and HEAD, so deleting them first fails with 'dir missing' and closes only after recreating the worktree on the same branch
+
+  - id: cleanup
+    after: [merge]
+    timeout: 60
+    on_fail: implement
+    do: >-
+      After the merge, confirm the PR closed the issue (a partial PR leaves it open), delete the remote branch, move with
+      wf_set dir=<the repository's main checkout>, then delete the worktree and the local branch. CI on the merge commit is out of scope — the PR's own CI gated the merge.
+    check: |
+      set -o pipefail
+      repo={pr_repo}; [ -n "$repo" ] || { r="${WF_ISSUE#https://github.com/}"; repo="${r%/issues/*}"; }
+      ref=$(gh api "repos/$repo/pulls/{pr}" --jq .head.ref) || exit 1
+      # A partial PR (no closing keyword) leaves the issue open on purpose. Each issue a
+      # closing keyword names (#N, owner/repo#N or its URL) must be closed in its own repo.
+      export R="$repo"
+      refs=$(gh api "repos/$repo/pulls/{pr}" --jq '(.body // "") | gsub("`[^`]*`"; "")
+        | scan("(?i)\\b(?:close[sd]?|fix(?:e[sd])?|resolve[sd]?):? +(?:https://github\\.com/([\\w.-]+/[\\w.-]+)/issues/|([\\w.-]+/[\\w.-]+)?#)([0-9]+)\\b")
+        | "\(.[0] // .[1] // env.R)/issues/\(.[2])"') || exit 1
+      for i in $refs; do [ "$(gh api "repos/$i" --jq .state)" = closed ] || {
+        echo "the PR says it closes $i, but it is open" >&2; exit 1; }; done
+      rc=0; git ls-remote --exit-code --heads origin "$ref" >/dev/null || rc=$?
+      [ "$rc" = 2 ] || { echo "remote branch $ref remains or the lookup failed (rc=$rc)" >&2; exit 1; }
+      if git show-ref --verify --quiet "refs/heads/$ref"; then echo "local branch $ref remains (worktree included) — check that dir moved to the main checkout" >&2; exit 1; fi
+    pitfalls:
+      - Deleting the worktree first fails the check with 'dir missing' — wf_set dir to the main checkout first
+      - Do not delete a branch or worktree holding someone else's work
+
+  - id: retro
+    after: [cleanup]
+    do: >-
+      Call wf_retro() for this type's accumulated evidence and suggestions, then record a verdict
+      (no_change|update_type|new_type). Post an issue comment starting with `wf retro` (deviations,
+      verdict, diff). wf supplies the check.

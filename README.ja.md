@@ -1,0 +1,133 @@
+[English](README.md) | [Korean](README.ko.md) | [Japanese](README.ja.md) | [Chinese](README.zh-CN.md) | [Spanish](README.es.md)
+
+<h1 align="center">omge</h1>
+
+<p align="center"><strong>oh-my-graph-engineering</strong>: Claude Code の作業を検証付きのグラフとして実行し、毎回のタスクで次のタスクを改善します。</p>
+
+<p align="center">
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue?style=flat-square" alt="License: MIT"></a>
+  <img src="https://img.shields.io/badge/version-0.1.0-informational?style=flat-square" alt="Version 0.1.0">
+  <img src="https://img.shields.io/badge/Claude%20Code-plugin-d97757?style=flat-square" alt="Claude Code plugin">
+</p>
+
+![omge demo](docs/demo.gif)
+
+> 実行時のメッセージは英語（デフォルト）または韓国語です。`OMGE_LANG` で切り替えます。
+
+## なぜ必要か
+
+長いタスクは崩れがちです。テストの手順が抜け、レビュアー不在のままレビューが「完了」になり、セッションが途中で止まります。
+omge はタスクをノードの列に変換し、各ノードにはクローズ前に成功しなければならないシェルの `check` があります。
+フックは Claude がノードを飛ばしたり早く止まったりするのを防ぎ、最後のレトロ（retro）で得た知見を
+再利用可能なワークフロータイプのライブラリへ戻します。
+
+## 仕組み
+
+```mermaid
+flowchart LR
+    T[テンプレートまたは単発グラフ] --> S[wf_start]
+    S --> N[次のノード]
+    N --> C{check は成功?}
+    C -- いいえ --> N
+    C -- はい --> D{残りのノード?}
+    D -- はい --> N
+    D -- いいえ --> R[wf_retro]
+    R --> L[(グラフライブラリ)]
+    L --> T
+    H[フック] -. ノードの飛ばしと早期終了をブロック .-> N
+```
+
+## 機能
+
+- **検証付きノード**: シェルの `check` を持つノードは、その check が 0 で終了したときだけ `wf_complete` で閉じられます。check のない `kind: human` ノードは提出された証拠で閉じます。失敗時の動作は `on_fail` で決まります。
+- **グラフを強制するフック**: SessionStart、UserPromptSubmit、Stop、PreToolUse、PostToolUse の各フックが手順の飛ばしと早期終了を防ぎます。
+- **レトロ駆動のライブラリ**: タスクの最後に `retro` ノードが実行され、改善したグラフを git でバージョン管理されるライブラリタイプとして保存できます。改善点がなければスキップまたは自動で閉じられることがあります。
+- **役割別エージェント**: explorer、implementer、reviewer、planner。それぞれ差し替え可能なモデルエイリアスに固定されています。
+- **同梱スキル**: `/omge:setup`、`/omge:graph`、`omge:writing-a-plan`、`omge:improving-skills`。
+- **英語または韓国語** の実行時メッセージ（`OMGE_LANG`）。
+
+## クイックスタート
+
+```bash
+claude plugin marketplace add dudals3844/oh-my-graph-engineering
+claude plugin install omge@oh-my-graph-engineering
+```
+
+次に Claude Code で `/omge:setup` を実行します。[uv](https://pypi.org/project/uv/) がインストールされているかを確認し
+（フックと `wf` MCP サーバーは uv 経由で動きます）、オプションの ponytail プラグインのインストールを提案します。
+
+> [!WARNING]
+> **フックの重複:** このプラグインは独自の SessionStart、UserPromptSubmit、Stop、PreToolUse、PostToolUse フックを登録します。
+> `settings.json` にも `wf hook ...` コマンドを設定している場合は削除してください。そうしないとすべてのフックが二重に実行されます。
+
+## グラフの例
+
+```yaml
+type: lint-fix
+match: fix lint errors and commit
+optional_issue: true
+nodes:
+  - id: fix
+    do: Fix every error `ruff check .` reports and commit.
+    check: uvx ruff check . && [ -z "$(git status --porcelain)" ]
+    on_fail: retry
+  - id: review
+    after: [fix]
+    agent: omge:reviewer
+    do: Delegate an independent review of HEAD.
+    kind: human
+  - id: retro
+    after: [review]
+    do: Call wf_retro() and record a verdict.
+```
+
+Claude は `wf_start` でタスクを開始し（ライブラリタイプ、または単発グラフと `type="new"`）、`wf_complete` でノードを閉じ、
+`wf_retro` で終了します。`/omge:graph` はすべてのノードフィールド、params、check の環境変数、
+そして単発グラフがライブラリタイプになるまでを説明します。
+
+## 同梱テンプレート
+
+| タイプ | 用途 |
+|---|---|
+| `code-implementation` | plan → implement → test → review → push/PR（issue の有無を問わない） |
+| `investigation` | 出典付きの根拠を収集 → 引用を検証 → 結論を報告 |
+| `issue-resolution` | GitHub の issue を spec、scope review、plan、implement、test、review、PR、CI、merge、cleanup まで |
+
+## エージェント
+
+| エージェント | モデルエイリアス | 役割 |
+|---|---|---|
+| `omge:explorer` | `haiku` | `path:line` の引用付きの読み取り専用検索 |
+| `omge:implementer` | `sonnet` | 計画された変更を実装してコミット |
+| `omge:reviewer` | `opus` | `Verdict: pass` / `Reviewed SHA: <sha>` で終わる独立レビュー |
+| `omge:planner` | `fable` | 実装計画を作成 |
+
+別のモデルを使うには、`agents/<name>.md` を `~/.claude/agents/` またはプロジェクトの `.claude/agents/` にコピーし、
+新しい `name` と別の `model:` エイリアスを付けて、ノードの `agent:` フィールドから参照します（例: `agent: reviewer-sonnet`）。
+
+## スキル
+
+| スキル | 用途 |
+|---|---|
+| `/omge:setup` | uv の確認、フック重複の警告、ponytail の提案 |
+| `/omge:graph` | グラフとライブラリタイプを書くためのリファレンス |
+| `omge:writing-a-plan` | plan ノードで使用 |
+| `omge:improving-skills` | レトロの根拠から `~/.claude/skills` のスキルを修正 |
+
+## 設定
+
+| 変数 | 効果 |
+|---|---|
+| `OMGE_LANG` | メッセージの言語: `en`（デフォルト）または `ko`。未設定時は `LC_ALL`、`LC_MESSAGES`、`LANG` からロケールを読みます（例: `ko_KR.UTF-8`） |
+| `WF_DB` | タスクデータベースのパス（デフォルト `~/.local/share/omge/wf.db`） |
+| `WF_LIBRARY` | git リポジトリであるタイプライブラリのパス（デフォルト `~/.local/share/omge/library/`） |
+
+## 開発
+
+```bash
+uv sync --locked --extra dev && uv run pytest -q
+```
+
+## ライセンス
+
+MIT。[LICENSE](LICENSE) を参照してください。
