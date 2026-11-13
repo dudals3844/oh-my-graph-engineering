@@ -226,16 +226,14 @@ def wf_retro(issue_url: str | None = None, task: int | None = None,
         # reply keeps the head and names it.
         path = Path(conn.execute("PRAGMA database_list").fetchone()[2]).parent / "retro" / (
             f"{row['id']}-evidence.txt")
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(evidence, encoding="utf-8")
+        store.write_private(path, evidence)
         evidence = evidence[:RETRO_EVIDENCE_MAX] + i18n.t("server.evidence_full", path=path)
     if verdict is None:
         # The input is ~60KB the parent only passes on: a file, not this reply.
         context = graph_.structural_context(conn, row)
         path = Path(conn.execute("PRAGMA database_list").fetchone()[2]).parent / "retro" / (
             f"{row['id']}-{context['snapshot'][:12]}.json")
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(json.dumps(context, ensure_ascii=False), encoding="utf-8")
+        store.write_private(path, json.dumps(context, ensure_ascii=False))
         return evidence + i18n.t("server.review_prompt", path=path, id=row['id'],
                                  snapshot=context['snapshot'])
     if not review_id:

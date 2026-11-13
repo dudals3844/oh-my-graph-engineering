@@ -334,8 +334,18 @@ def test_investigation_starts_without_an_issue_and_verify_goes_back_to_collect(r
 
 def _run(t: dict, node_id: str, notes: Path, cwd: str) -> int:
     node = next(n for n in t["nodes"] if n["id"] == node_id)
-    return checks.run(checks.render(node["check"], {"notes": str(notes)}, t["params"]), cwd, {},
-                      30)[0]
+    cmd, env = checks.render(node["check"], {"notes": str(notes)}, t["params"])
+    return checks.run(cmd, cwd, env, 30)[0]
+
+
+def test_investigation_checks_never_import_from_the_checkout(repo, tmp_path):
+    t = _shipped("investigation")
+    marker = tmp_path / "imported"
+    Path(repo, "re.py").write_text(f"open({str(marker)!r}, 'w').close()\n")
+    notes = tmp_path / "notes.md"
+    notes.write_text("- re.py:1 x\n- https://example.com/a\n- https://example.com/b\n")
+    assert [_run(t, nid, notes, repo) for nid in ("collect", "verify")] == [0, 0]
+    assert not marker.exists()
 
 
 def test_investigation_checks_read_the_notes(repo, tmp_path):
@@ -403,8 +413,8 @@ def test_issue_resolution_implement_check_wants_a_clean_commit_ahead(tmp_path):
     subprocess.run([*git, "fetch", "-q"], check=True)
 
     def run(complexity: str = "simple") -> int:
-        cmd = checks.render(node["check"], {"complexity": complexity}, t["params"])
-        return checks.run(cmd, str(work), {}, 30)[0]
+        cmd, env = checks.render(node["check"], {"complexity": complexity}, t["params"])
+        return checks.run(cmd, str(work), env, 30)[0]
 
     assert run() != 0  # nothing ahead
     Path(work, "f").write_text("x")
@@ -461,8 +471,8 @@ exit "$(cat "$f.rc" 2>/dev/null || echo 0)"
     fake.chmod(0o755)
     env = {"PATH": f"{bin_}:{os.environ['PATH']}", "WF_BRANCH": branch,
            "WF_ISSUE": "https://github.com/example/demo/issues/5"}
-    cmd = checks.render(node["check"], params or {"pr": "7", "pr_repo": ""}, t["params"])
-    return checks.run(cmd, cwd, env, 30)[0]
+    cmd, values = checks.render(node["check"], params or {"pr": "7", "pr_repo": ""}, t["params"])
+    return checks.run(cmd, cwd, {**env, **values}, 30)[0]
 
 
 @pytest.mark.parametrize(("branch", "code"), [

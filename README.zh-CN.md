@@ -55,6 +55,10 @@ claude plugin install omge@oh-my-graph-engineering
 然后在 Claude Code 中运行 `/omge:setup`。它会检查是否已安装 [uv](https://pypi.org/project/uv/)
 （钩子和 `wf` MCP 服务器都通过 uv 运行），并提供安装可选的 ponytail 插件。
 
+首次使用时，uv 会按已提交的 `uv.lock` 从 PyPI 获取 omge 的 Python 依赖。
+如果没有安装 Python 3.12 或更高版本，uv 还会下载一个。
+除此之外不会下载任何内容，omge 也不发送任何遥测数据。
+
 > [!WARNING]
 > **重复的钩子：** 插件会注册自己的 SessionStart、UserPromptSubmit、Stop、PreToolUse 和 PostToolUse 钩子。
 > 如果你还在 `settings.json` 中配置了 `wf hook ...` 命令，请删除它们，否则每个钩子都会运行两次。

@@ -24,6 +24,7 @@ from pathlib import Path
 
 import yaml
 
+from . import store
 from .i18n import t
 from .store import WfError
 
@@ -71,9 +72,10 @@ def _unseeded(path: Path) -> bool:
 
 def root(seed: bool = True) -> Path:
     path = Path(os.environ.get("WF_LIBRARY") or Path.home() / ".local/share/omge/library")
+    if seed or path.is_dir():
+        store.private_dir(path)
     if seed and (any(not (path / f.name).exists() for f in WORKFLOWS.glob("*.yaml"))
                  or _unseeded(path)):
-        path.mkdir(parents=True, exist_ok=True)
         with _locked(path):
             fresh = _unseeded(path)
             new = sorted(f.name for f in WORKFLOWS.glob("*.yaml") if not (path / f.name).exists())

@@ -54,6 +54,10 @@ claude plugin install omge@oh-my-graph-engineering
 Then run `/omge:setup` in Claude Code. It checks that [uv](https://pypi.org/project/uv/) is installed (the
 hooks and the `wf` MCP server run through it) and offers to install the optional ponytail plugin.
 
+On first use, uv resolves omge's Python dependencies from PyPI, pinned by the committed `uv.lock`.
+If no Python 3.12 or newer is installed, uv also downloads one. Nothing else is downloaded, and omge
+sends no telemetry.
+
 > [!WARNING]
 > **Duplicate hooks:** the plugin registers its own SessionStart, UserPromptSubmit, Stop, PreToolUse and
 > PostToolUse hooks. If you also wired `wf hook ...` commands into a `settings.json`, remove them, or

@@ -63,7 +63,7 @@ nodes:
       - Only the comment's last line counts as the verdict
       - A self-review is not a review
     next:
-      - {to: plan, label: complex → plan, when: '[ "{complexity}" = complex ]'}
+      - {to: plan, label: complex → plan, when: '[ {complexity} = complex ]'}
       - {to: implement, label: simple}
 
   - id: plan
@@ -189,7 +189,7 @@ nodes:
       export HEAD_SHA=$(git rev-parse HEAD) N="${WF_ISSUE##*/}" SAME=no
       [ "$r" = "$i" ] && SAME=yes
       # Cross-repo, a bare #N names the PR repo's issue N: require the issue URL and refuse a bare closing keyword.
-      gh api "repos/$r/pulls/{pr}" --jq '
+      gh api "repos/$r/pulls/"{pr} --jq '
         .head.ref == env.WF_BRANCH and .head.sha == env.HEAD_SHA
         and ((.body // "") | gsub("`[^`]*`"; "")
              | if env.SAME == "yes" then test("#" + env.N + "([^0-9]|$)|" + env.WF_ISSUE)
@@ -211,7 +211,7 @@ nodes:
     check: |
       r={pr_repo}; [ -n "$r" ] || { r="${WF_ISSUE#https://github.com/}"; r="${r%/issues/*}"; }
       sha=$(git rev-parse HEAD)
-      head=$(gh api "repos/$r/pulls/{pr}" --jq .head.sha) || exit 1
+      head=$(gh api "repos/$r/pulls/"{pr} --jq .head.sha) || exit 1
       [ "$head" = "$sha" ] || { echo "PR head $head != local HEAD $sha" >&2; exit 1; }
       # gh pr checks covers check runs and commit statuses: 0 all passed, 8 pending, 1 failed or none reported.
       out=$(gh pr checks {pr} -R "$r" 2>&1); rc=$?
@@ -238,7 +238,7 @@ nodes:
     check: |
       set -o pipefail
       r={pr_repo}; [ -n "$r" ] || { r="${WF_ISSUE#https://github.com/}"; r="${r%/issues/*}"; }
-      gh api "repos/$r/pulls/{pr}" --jq '.merged and .head.ref == env.WF_BRANCH' | grep -qx true
+      gh api "repos/$r/pulls/"{pr} --jq '.merged and .head.ref == env.WF_BRANCH' | grep -qx true
     pitfalls:
       - Even after the merge, delete the worktree and branch only in cleanup — the ci and merge checks match the PR by the dir's branch (WF_BRANCH) and HEAD, so deleting them first fails with 'dir missing' and closes only after recreating the worktree on the same branch
 
@@ -252,11 +252,11 @@ nodes:
     check: |
       set -o pipefail
       repo={pr_repo}; [ -n "$repo" ] || { r="${WF_ISSUE#https://github.com/}"; repo="${r%/issues/*}"; }
-      ref=$(gh api "repos/$repo/pulls/{pr}" --jq .head.ref) || exit 1
+      ref=$(gh api "repos/$repo/pulls/"{pr} --jq .head.ref) || exit 1
       # A partial PR (no closing keyword) leaves the issue open on purpose. Each issue a
       # closing keyword names (#N, owner/repo#N or its URL) must be closed in its own repo.
       export R="$repo"
-      refs=$(gh api "repos/$repo/pulls/{pr}" --jq '(.body // "") | gsub("`[^`]*`"; "")
+      refs=$(gh api "repos/$repo/pulls/"{pr} --jq '(.body // "") | gsub("`[^`]*`"; "")
         | scan("(?i)\\b(?:close[sd]?|fix(?:e[sd])?|resolve[sd]?):? +(?:https://github\\.com/([\\w.-]+/[\\w.-]+)/issues/|([\\w.-]+/[\\w.-]+)?#)([0-9]+)\\b")
         | "\(.[0] // .[1] // env.R)/issues/\(.[2])"') || exit 1
       for i in $refs; do [ "$(gh api "repos/$i" --jq .state)" = closed ] || {

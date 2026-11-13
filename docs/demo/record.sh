@@ -13,6 +13,6 @@ cast="$work/demo.cast"
 env -i PATH="$repo/.venv/bin:/usr/bin:/bin" HOME="$work/home" TERM=xterm-256color \
   LANG=C.UTF-8 DEMO_DIR="$repo/docs/demo" PS1='$ ' \
   "${ASCIINEMA:-asciinema}" rec -q --overwrite --cols 100 --rows 32 \
-  -c "bash --noprofile --norc $repo/docs/demo/scene.sh" "$cast"
+  -c 'bash --noprofile --norc "$DEMO_DIR/scene.sh"' "$cast"
 "${AGG:-agg}" --font-size 16 --idle-time-limit 5 --last-frame-duration 3 "$cast" "$repo/docs/demo.gif"
 [ -n "${KEEP:-}" ] && cp "$cast" "$KEEP"; rm -rf "$work"

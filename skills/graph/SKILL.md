@@ -70,8 +70,15 @@ A `retro` node is required and must be last (only `kind: human` nodes may follow
 
 ## Params and quoting
 
-- `{name}` in a check or `when` is replaced by the param's value, regex-checked and shell-quoted. Write it
-  bare (`f={review}`), not inside quotes. `${name}` is bash and is left alone.
+- `{name}` in a check or `when` is replaced by `${WF_P_name+"${WF_P_name}"}`, and the param's regex-checked value
+  is passed in that env variable, so it is never parsed as shell source: write it bare (`f={review}`), in
+  `"..."` or in `$(...)`. Do not put a placeholder inside `'...'`: it stays literal text there.
+  `${name}` is bash and is left alone.
+- Exception: bash itself evaluates a value in arithmetic (`$(( ))`, `(( ))`, `let`, `[[ ... -eq ... ]]`
+  and the other `[[ ]]` numeric operators, array subscripts) and in `eval`/`bash -c`, so
+  `a[$(cmd)]` runs `cmd` there. A param used as a number needs a numeric regex (`^[0-9]+$`). A param
+  meant to be a command (`test_cmd`) is code by design: set it only from the graph author or user,
+  never from outside text (issue, PR, web page).
 - A param whose regex accepts `""` is optional; any other must be set (wf_set, or `params` on
   wf_complete) before its check runs.
 - A literal `{x}` that is not a param must be escaped: git's `@{u}` is written `@\{u\}`.

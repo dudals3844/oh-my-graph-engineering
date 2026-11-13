@@ -11,7 +11,9 @@ Answer in the user's language. Do the steps in order and report each result in o
 
 Run `uv --version`.
 
-- It prints a version: report it and go on.
+- It prints a version: report it, and tell the user that on first use uv resolves omge's Python
+  dependencies from PyPI, pinned by the committed `uv.lock`, and downloads a Python 3.12 or newer if none is
+  installed; nothing else is downloaded, and omge sends no telemetry. Go on.
 - It fails: tell the user omge's hooks and MCP server run through uv, and point them to
   https://pypi.org/project/uv/ for installation. Do not install uv yourself. Stop here until they have it.
 

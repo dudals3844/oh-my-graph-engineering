@@ -56,6 +56,10 @@ claude plugin install omge@oh-my-graph-engineering
 그다음 Claude Code에서 `/omge:setup`을 실행하세요. [uv](https://pypi.org/project/uv/) 설치 여부를 확인하고
 (훅과 `wf` MCP 서버가 uv로 실행됩니다), 선택 사항인 ponytail 플러그인 설치를 제안합니다.
 
+처음 사용할 때 uv가 커밋된 `uv.lock`에 고정된 omge의 Python 의존성을 PyPI에서 받아옵니다.
+Python 3.12 이상이 설치되어 있지 않으면 uv가 그것도 내려받습니다.
+그 밖에는 아무것도 내려받지 않으며, omge는 텔레메트리를 보내지 않습니다.
+
 > [!WARNING]
 > **중복 훅:** 플러그인은 자체 SessionStart, UserPromptSubmit, Stop, PreToolUse, PostToolUse 훅을 등록합니다.
 > `settings.json`에 `wf hook ...` 명령도 연결해 두었다면 제거하세요. 그렇지 않으면 모든 훅이 두 번 실행됩니다.

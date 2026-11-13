@@ -33,7 +33,7 @@ def test_template_loads_and_shells_are_valid_bash(path):
     for node in t["nodes"]:
         for shell in [node.get("check"), *(e.get("when") for e in node["next"])]:
             if shell:
-                cmd = checks.render(shell, PARAMS, t["params"])
+                cmd, _ = checks.render(shell, PARAMS, t["params"])
                 subprocess.run(["bash", "-n", "-c", cmd], check=True)
 
 
@@ -103,8 +103,8 @@ def _issue_test_command(scope):
 ])
 def test_issue_scoped_pytest_executes_path_argv_and_preserves_failure(
         issue_test_checkout, scope, ok):
-    cmd = _issue_test_command(scope)
-    code, output = checks.run(cmd, str(issue_test_checkout), {}, 30)
+    cmd, env = _issue_test_command(scope)
+    code, output = checks.run(cmd, str(issue_test_checkout), env, 30)
     assert (code == 0) is ok, output
     if ok:
         assert "2 passed" in output
@@ -135,7 +135,8 @@ def test_issue_ruff_checks_only_configured_changed_surviving_files(issue_test_ch
     _git(path, "commit", "-q", "-m", "change")
     if case == "bad_base":
         _git(path, "update-ref", "-d", "refs/remotes/origin/main")
-    code, output = checks.run(_issue_test_command("tests/first tests/second"), str(path), {}, 30)
+    cmd, env = _issue_test_command("tests/first tests/second")
+    code, output = checks.run(cmd, str(path), env, 30)
     assert (code == 0) is ok, output
     if case == "lint_error":
         assert "F401" in output and "old_debt.py" not in output

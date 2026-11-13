@@ -172,9 +172,27 @@ def _migrate(conn: sqlite3.Connection) -> None:  # noqa: C901
         conn.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
 
 
+def private_dir(path: Path) -> Path:
+    """Plugin state holds task text and evidence: owner-only, whatever the umask."""
+    path.mkdir(mode=0o700, parents=True, exist_ok=True)
+    path.chmod(0o700)
+    return path
+
+
+def write_private(path: Path, text: str) -> None:
+    private_dir(path.parent)
+    fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    os.fchmod(fd, 0o600)
+    with open(fd, "w", encoding="utf-8") as f:
+        f.write(text)
+
+
 def connect() -> sqlite3.Connection:
     path = Path(os.environ.get("WF_DB") or Path.home() / ".local/share/omge/wf.db")
-    path.parent.mkdir(parents=True, exist_ok=True)
+    private_dir(path.parent)
+    # SQLite gives -wal/-shm the main file's mode.
+    os.close(os.open(path, os.O_CREAT | os.O_RDWR, 0o600))
+    path.chmod(0o600)
     # Autocommit: every write here is a single statement or an explicit
     # `with conn:` block, and an implicit open transaction would hold the write
     # lock across a multi-minute check run.

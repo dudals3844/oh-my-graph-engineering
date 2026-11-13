@@ -56,6 +56,10 @@ claude plugin install omge@oh-my-graph-engineering
 次に Claude Code で `/omge:setup` を実行します。[uv](https://pypi.org/project/uv/) がインストールされているかを確認し
 （フックと `wf` MCP サーバーは uv 経由で動きます）、オプションの ponytail プラグインのインストールを提案します。
 
+初回の使用時に、uv がコミット済みの `uv.lock` に固定された omge の Python 依存関係を PyPI から取得します。
+Python 3.12 以降がインストールされていない場合は、uv がそれもダウンロードします。
+それ以外は何もダウンロードせず、omge はテレメトリを送信しません。
+
 > [!WARNING]
 > **フックの重複:** このプラグインは独自の SessionStart、UserPromptSubmit、Stop、PreToolUse、PostToolUse フックを登録します。
 > `settings.json` にも `wf hook ...` コマンドを設定している場合は削除してください。そうしないとすべてのフックが二重に実行されます。

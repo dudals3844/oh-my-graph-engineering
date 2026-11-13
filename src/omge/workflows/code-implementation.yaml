@@ -7,6 +7,7 @@ match: code change — plan implement test lint review commit PR
 optional_issue: true
 params:
   plan: '^/[A-Za-z0-9._/-]+\.md$'
+  # A command run via `bash -c`: code by design; set it yourself, never from issue/PR text.
   test_cmd: '^[^\n]+$'
   review: '^/[A-Za-z0-9._/-]+\.md$'
 nodes:

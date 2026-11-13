@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+import json
+import os
 import sqlite3
+import stat
 import subprocess
 import time
 from pathlib import Path
@@ -112,11 +115,82 @@ def test_ready_requires_every_predecessor_closed(workflows, repo):
 def test_render_validates_and_quotes():
     patterns = {"name": "^[a-z;]+$"}
     # The regex admits `;`, so only the quoting stands between it and the shell.
-    assert checks.render("echo {name} ${name}", {"name": "a;b"}, patterns) == "echo 'a;b' ${name}"
+    assert checks.render("echo {name} ${name}", {"name": "a;b"}, patterns) == (
+        'echo ${WF_P_name+"${WF_P_name}"} ${name}', {"WF_P_name": "a;b"})
     with pytest.raises(graph.WfError, match="is unset"):
         checks.render("echo {name}", {"name": ""}, patterns)
     with pytest.raises(graph.WfError, match="does not match"):
         checks.render("echo {name}", {"name": "A"}, patterns)
+
+
+def test_a_bare_placeholder_stays_literal_when_run(tmp_path):
+    value = 'x"; touch pwned; "'
+    cmd, env = checks.render('printf %s {p} "$(printf %s {p})"', {"p": value}, {"p": ".*"})
+    code, out = checks.run(cmd, str(tmp_path), env, 10)
+    assert (code, out) == (0, value * 2) and not (tmp_path / "pwned").exists()
+
+
+INJECTED = "$(printf INJECTED >&2)"
+
+
+@pytest.mark.parametrize("shell", [
+    "printf %s {p}", 'printf %s "{p}"', 'printf %s "$(printf "%s" "{p}")"',
+    'printf %s "$(printf %s {p})"', "printf %s $\\\n'x{p}'", "cat <<EOF\n{p}\nEOF",
+])
+def test_a_param_value_is_never_run_as_code(tmp_path, shell):
+    t = graph.parse(_body(f"  - {{id: a, check: {json.dumps(shell)}}}\n  - {{id: retro}}\n",
+                          "{p: '.*'}"))
+    cmd, env = checks.render(t["nodes"][0]["check"], {"p": INJECTED}, t["params"])
+    code, out = checks.run(cmd, str(tmp_path), env, 10)
+    assert code == 0 and "INJECTED" not in out.replace(INJECTED, "")
+
+
+def test_a_param_value_in_a_when_is_never_run_as_code(workflows, repo):
+    (workflows / "when.yaml").write_text(_body(
+        "  - {id: a, check: 'test -d .',"
+        " next: [{to: retro, when: 'exec 2>err; [ \"{p}\" != x ]'}]}\n"
+        "  - {id: retro}\n", "{p: '.*'}").replace("type: x", "type: when"))
+    tid = start(repo, type_="when", params={"p": INJECTED})
+    conn = store.connect()
+    checks.run_ready(conn, store.get_task(conn, tid), time.monotonic() + 30)
+    assert statuses(tid)["a"] == "done"
+    assert Path(repo, "err").read_text() == ""
+
+
+def test_a_param_value_with_a_space_is_one_argument(tmp_path):
+    cmd, env = checks.render("printf '<%s>' {p}", {"p": "a b"}, {"p": ".*"})
+    assert checks.run(cmd, str(tmp_path), env, 10) == (0, "<a b>")
+
+
+def test_a_numeric_regex_keeps_code_out_of_bash_arithmetic(tmp_path):
+    # `[[ -eq ]]` evaluates its operands as arithmetic, so only the regex stops this value.
+    t = graph.parse(_body("  - {id: a, check: '[[ {n} -eq 1 ]]'}\n  - {id: retro}\n",
+                          "{n: '^[0-9]+$'}"))
+    with pytest.raises(graph.WfError, match="does not match"):
+        checks.render(t["nodes"][0]["check"], {"n": "a[$(touch marker)]"}, t["params"])
+    cmd, env = checks.render(t["nodes"][0]["check"], {"n": "1"}, t["params"])
+    assert checks.run(cmd, str(tmp_path), env, 10)[0] == 0
+    assert not (tmp_path / "marker").exists()
+
+
+def test_state_is_owner_only_under_umask_022(workflows, repo, tmp_path, monkeypatch):
+    from omge import library, server
+
+    db = tmp_path / "state" / "wf.db"
+    db.parent.mkdir(mode=0o755)  # existing state is tightened too
+    monkeypatch.setenv("WF_DB", str(db))
+    old = os.umask(0o022)
+    try:
+        tid = graph.start(store.connect(), "demo", repo, None, {}, title="t")
+        out = server.mcp._tool_manager._tools["wf_retro"].fn(task=tid)
+        lib = library.root()
+    finally:
+        os.umask(old)
+    retro = next((db.parent / "retro").iterdir())
+    assert str(retro) in out
+    private = {db.parent: 0o700, db.parent / "retro": 0o700, lib: 0o700,
+               db: 0o600, db.parent / "wf.db-wal": 0o600, retro: 0o600}
+    assert {p: stat.S_IMODE(p.stat().st_mode) for p in private} == private
 
 
 def test_run_timeout_kills_the_whole_process_group(tmp_path):

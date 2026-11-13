@@ -17,7 +17,7 @@ nodes:
       source (`path:line` or URL); this session writes them into the notes file. wf_set notes=<absolute
       path of the notes file>.
     check: |
-      python3 - {notes} 3 <<'PY'
+      python3 -I - {notes} 3 <<'PY'
       import os, re, sys
       notes, need, bounded = sys.argv[1], int(sys.argv[2]), len(sys.argv) > 3
       text = open(notes).read() if os.path.isfile(notes) else ''
@@ -53,7 +53,7 @@ nodes:
       no URL fails. If a claim is unsupported or wrong, wf_fail(verify, reason) — back to collect
       to gather more.
     check: |
-      python3 - {notes} 1 bounded <<'PY'
+      python3 -I - {notes} 1 bounded <<'PY'
       import os, re, sys
       notes, need, bounded = sys.argv[1], int(sys.argv[2]), len(sys.argv) > 3
       text = open(notes).read() if os.path.isfile(notes) else ''

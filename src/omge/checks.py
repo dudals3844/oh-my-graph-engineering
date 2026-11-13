@@ -9,7 +9,6 @@ import ast
 import json
 import os
 import re
-import shlex
 import signal
 import sqlite3
 import subprocess
@@ -46,13 +45,19 @@ def first_error_line(tail: str) -> str:
     return hit or (lines[-1] if lines else "")
 
 
-def render(check: str, params: dict[str, str], patterns: dict[str, str]) -> str:
-    """Substitute `{param}` with its regex-validated, shell-quoted value.
+def render(check: str, params: dict[str, str],
+           patterns: dict[str, str]) -> tuple[str, dict[str, str]]:
+    """Replace `{param}` with `${WF_P_param+"${WF_P_param}"}` and return the values as
+    that env.
 
-    The regex is the content contract (a `pkg_dir` must look like a package
-    dir); `shlex.quote` is the injection guard. Neither replaces the other: a
-    value can match a loose pattern and still carry `;`.
+    The value never enters shell source: bash expands it but never re-parses the
+    result, so it stays data. The `+` form is one quoted word both bare and inside
+    "..." (a plain `"${X}"` there would close the outer quotes and split), in `$(...)`
+    and a heredoc. The regex is the content contract (a `pkg_dir` must look like a
+    package dir). PLACEHOLDER only matches identifiers, so every name is a valid
+    variable name.
     """
+    env = {}
 
     def sub(m: re.Match) -> str:
         name = m[1]
@@ -63,9 +68,10 @@ def render(check: str, params: dict[str, str], patterns: dict[str, str]) -> str:
         if not re.fullmatch(patterns[name], value):
             raise graph.WfError(i18n.t("checks.param_mismatch", name=name, value=repr(value),
                                         pattern=repr(patterns[name])))
-        return shlex.quote(value)
+        env[f"WF_P_{name}"] = value
+        return f'${{WF_P_{name}+"${{WF_P_{name}}}"}}'
 
-    return graph.PLACEHOLDER.sub(sub, check)
+    return graph.PLACEHOLDER.sub(sub, check), env
 
 
 def run(cmd: str, cwd: str, env: dict[str, str], timeout: float) -> tuple[int, str]:
@@ -171,8 +177,8 @@ def close(conn: sqlite3.Connection, task: sqlite3.Row, node_id: str, *, status: 
                 break
             if limit() <= 0:
                 continue  # the budget is spent: this `when` cannot match
-            if run(render(e["when"], params, t["params"]), task["dir"], _env(task, node),
-                   limit())[0] == 0:
+            cmd, values = render(e["when"], params, t["params"])
+            if run(cmd, task["dir"], {**_env(task, node), **values}, limit())[0] == 0:
                 edge = e
                 break
         if edge is None:
@@ -337,10 +343,11 @@ def fail(conn: sqlite3.Connection, task: sqlite3.Row, node_id: str, reason: str)
     # external outcome (merged); a changes-requested review fails it without failing it.
     if node.get("check") and node.get("kind") != "human":
         try:
-            cmd = render(node["check"], json.loads(task["params"]), t["params"])
+            cmd, values = render(node["check"], json.loads(task["params"]), t["params"])
         except graph.WfError:
             cmd = None  # an unset param: the check cannot pass
-        if cmd and run(cmd, task["dir"], _env(task, node), node["timeout"])[0] == 0:
+        if cmd and run(cmd, task["dir"], {**_env(task, node), **values},
+                       node["timeout"])[0] == 0:
             raise graph.WfError(i18n.t("checks.check_passes", node=node_id))
     to, limit = node["on_fail"], node["on_fail_max"]
     with conn:
@@ -393,11 +400,11 @@ def attempt(  # noqa: C901
         code, tail = 124, i18n.t("checks.unrun")
     else:
         try:
-            cmd = render(node["check"], json.loads(task["params"]), t["params"])
+            cmd, values = render(node["check"], json.loads(task["params"]), t["params"])
         except graph.WfError as exc:
             code, tail = 1, f"[wf] {exc}"
         else:
-            env = _env(task, node)
+            env = {**_env(task, node), **values}
             if at:  # GitHub's `created_at` format: a receipt must postdate the call
                 env["WF_SKILL_AT"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(at))
             code, tail = run(cmd, task["dir"], env, min(node["timeout"], remaining))
