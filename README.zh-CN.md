@@ -86,13 +86,25 @@ omge 把任务变成一组节点，每个节点都有一个必须通过才能关
 
 ## 快速开始
 
+在 Claude Code 会话中：
+
+```text
+/plugin marketplace add dudals3844/oh-my-graph-engineering
+/plugin install omge@oh-my-graph-engineering
+/omge:setup
+```
+
+如果 `/omge:setup` 尚未出现在列表中，请先运行 `/reload-plugins`。
+
+或者在 shell 中：
+
 ```bash
 claude plugin marketplace add dudals3844/oh-my-graph-engineering
 claude plugin install omge@oh-my-graph-engineering
 claude "/omge:setup"
 ```
 
-最后一条命令会打开 Claude Code 并运行 `/omge:setup`。它会检查是否已安装 [uv](https://pypi.org/project/uv/)
+`/omge:setup` 会检查是否已安装 [uv](https://pypi.org/project/uv/)
 （钩子和 `omge:wf` MCP 服务器都通过 uv 运行），并提供安装可选的 ponytail 插件。
 
 首次使用时，uv 会按已提交的 `uv.lock` 从 PyPI 获取 omge 的 Python 依赖。

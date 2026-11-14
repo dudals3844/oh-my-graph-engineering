@@ -85,13 +85,25 @@ learned back into a reusable library of workflow types.
 
 ## Quick Start
 
+Inside Claude Code:
+
+```text
+/plugin marketplace add dudals3844/oh-my-graph-engineering
+/plugin install omge@oh-my-graph-engineering
+/omge:setup
+```
+
+If `/omge:setup` is not listed yet, run `/reload-plugins` first.
+
+Or from your shell:
+
 ```bash
 claude plugin marketplace add dudals3844/oh-my-graph-engineering
 claude plugin install omge@oh-my-graph-engineering
 claude "/omge:setup"
 ```
 
-The last command opens Claude Code and runs `/omge:setup`: it checks that [uv](https://pypi.org/project/uv/) is installed (the
+`/omge:setup` checks that [uv](https://pypi.org/project/uv/) is installed (the
 hooks and the `omge:wf` MCP server run through it) and offers to install the optional ponytail plugin.
 
 On first use, uv resolves omge's Python dependencies from PyPI, pinned by the committed `uv.lock`.

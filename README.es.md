@@ -87,13 +87,25 @@ retrospectiva (retro) al final devuelve lo aprendido a una biblioteca reutilizab
 
 ## Inicio rápido
 
+Dentro de Claude Code:
+
+```text
+/plugin marketplace add dudals3844/oh-my-graph-engineering
+/plugin install omge@oh-my-graph-engineering
+/omge:setup
+```
+
+Si `/omge:setup` aún no aparece en la lista, ejecuta primero `/reload-plugins`.
+
+O desde tu shell:
+
 ```bash
 claude plugin marketplace add dudals3844/oh-my-graph-engineering
 claude plugin install omge@oh-my-graph-engineering
 claude "/omge:setup"
 ```
 
-El último comando abre Claude Code y ejecuta `/omge:setup`: comprueba que [uv](https://pypi.org/project/uv/) está instalado
+`/omge:setup` comprueba que [uv](https://pypi.org/project/uv/) está instalado
 (los hooks y el servidor MCP `omge:wf` se ejecutan con él) y ofrece instalar el plugin opcional ponytail.
 
 En el primer uso, uv resuelve las dependencias de Python de omge desde PyPI, fijadas por el `uv.lock`

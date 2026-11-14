@@ -87,13 +87,25 @@ omge는 작업을 노드 목록으로 바꾸고, 각 노드에는 닫히기 전�
 
 ## 빠른 시작
 
+Claude Code 세션 안에서:
+
+```text
+/plugin marketplace add dudals3844/oh-my-graph-engineering
+/plugin install omge@oh-my-graph-engineering
+/omge:setup
+```
+
+`/omge:setup`이 아직 목록에 없으면 먼저 `/reload-plugins`를 실행하세요.
+
+또는 셸에서:
+
 ```bash
 claude plugin marketplace add dudals3844/oh-my-graph-engineering
 claude plugin install omge@oh-my-graph-engineering
 claude "/omge:setup"
 ```
 
-마지막 명령은 Claude Code를 열고 `/omge:setup`을 실행합니다. [uv](https://pypi.org/project/uv/) 설치 여부를 확인하고
+`/omge:setup`은 [uv](https://pypi.org/project/uv/) 설치 여부를 확인하고
 (훅과 `omge:wf` MCP 서버가 uv로 실행됩니다), 선택 사항인 ponytail 플러그인 설치를 제안합니다.
 
 처음 사용할 때 uv가 커밋된 `uv.lock`에 고정된 omge의 Python 의존성을 PyPI에서 받아옵니다.

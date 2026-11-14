@@ -87,13 +87,25 @@ omge はタスクをノードの列に変換し、各ノードにはクローズ
 
 ## クイックスタート
 
+Claude Code のセッション内で:
+
+```text
+/plugin marketplace add dudals3844/oh-my-graph-engineering
+/plugin install omge@oh-my-graph-engineering
+/omge:setup
+```
+
+`/omge:setup` がまだ一覧に出ない場合は、先に `/reload-plugins` を実行してください。
+
+またはシェルから:
+
 ```bash
 claude plugin marketplace add dudals3844/oh-my-graph-engineering
 claude plugin install omge@oh-my-graph-engineering
 claude "/omge:setup"
 ```
 
-最後のコマンドは Claude Code を開いて `/omge:setup` を実行します。[uv](https://pypi.org/project/uv/) がインストールされているかを確認し
+`/omge:setup` は [uv](https://pypi.org/project/uv/) がインストールされているかを確認し
 （フックと `omge:wf` MCP サーバーは uv 経由で動きます）、オプションの ponytail プラグインのインストールを提案します。
 
 初回の使用時に、uv がコミット済みの `uv.lock` に固定された omge の Python 依存関係を PyPI から取得します。
