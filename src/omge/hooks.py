@@ -864,10 +864,19 @@ def _stop_event(conn: sqlite3.Connection, home: str, session: str, waiting: bool
         if len(text) > STOP_TEXT_MAX:
             tail = i18n.t("hooks.stop_text_tail")
             text = text[:STOP_TEXT_MAX - len(tail)] + tail
-        print(text, file=sys.stderr)
-        return 2
+        return _block("stop", text)
     if notes:
         print(json.dumps({"systemMessage": "\n".join(notes)}, ensure_ascii=False))
+    return 0
+
+
+def _block(event: str, reason: str) -> int:
+    """An intentional block, as Claude Code's JSON with exit 0: exit 2 with stderr renders as
+    a hook error. Stop's `additionalContext` keeps Claude going (`Stop hook feedback`)."""
+    out = ({"hookEventName": "Stop", "additionalContext": reason} if event == "stop" else
+           {"hookEventName": "PreToolUse", "permissionDecision": "deny",
+            "permissionDecisionReason": reason})
+    print(json.dumps({"hookSpecificOutput": out}, ensure_ascii=False))
     return 0
 
 
@@ -908,8 +917,7 @@ def main(event: str, stdin: str) -> int:  # noqa: C901
         if event == "pre-tool-use":
             reason = pre_tool_use(conn, session, tool, tool_input, bool(data.get("agent_id")), base)
             if reason:
-                print(reason, file=sys.stderr)
-                return 2
+                return _block("pre-tool-use", reason)
             if out := _write_hint(conn, session, tool, tool_input, base):
                 print(json.dumps(out, ensure_ascii=False))
             return 0

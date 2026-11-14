@@ -2,18 +2,12 @@
 
 # Works with your plugins
 
+omge is just a graph engineering tool. Design the skills and agents your work needs yourself and plug them into the graph.
+
 omge does not replace your agents or skills. It decides **which step runs when and what proves it is
 done**; the agents and skills you already have do the work. You only design the graph.
 
-## How it works
-
-- A node can require any installed agent (`agent:`) and/or skill (`skill:`).
-- Agent gating is the default (`agent_mode: require`); `agent_mode: recommend` only suggests the agent.
-- omge:wf gates the node until that Agent launch or Skill call happens while the node is ready. A Skill
-  call made before then is refused and does not count.
-- A Skill call made inside a subagent counts too: it arrives with the parent's session.
-- `agent:` and `skill:` accept a list; any one of them satisfies it.
-- Names match exactly. Use the `plugin:skill` name your `/skills` list (or the plugin) shows.
+![superpowers and ponytail skills closing omge nodes](compat-demo.gif)
 
 ## No YAML needed
 

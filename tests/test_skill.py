@@ -12,7 +12,7 @@ import pytest
 
 from omge import checks, graph, hooks, library, store
 
-from .conftest import ISSUE, close, start, statuses
+from .conftest import ISSUE, close, run_hook, start, statuses
 
 SKILLED = """
 type: skilled
@@ -36,7 +36,7 @@ def tid(workflows, repo):
 
 def _hook(event: str, cwd: str, **payload) -> None:
     store.register(store.connect(), "s1")
-    assert hooks.main(event, json.dumps({"cwd": cwd, "session_id": "s1", **payload})) == 0
+    assert run_hook(event, {"cwd": cwd, "session_id": "s1", **payload}) == 0
 
 
 def _skill(repo: str, name: str, **payload) -> None:
@@ -312,8 +312,8 @@ def test_a_skill_call_before_its_node_is_ready_is_refused(tid, repo, capsys):
     """A call that would not count is refused up front, not silently redone."""
     def call(name: str = "demo:review") -> int:
         store.register(store.connect(), "s1")
-        return hooks.main("pre-tool-use", json.dumps({
-            "cwd": repo, "session_id": "s1", "tool_name": "Skill", "tool_input": {"skill": name}}))
+        return run_hook("pre-tool-use", {
+            "cwd": repo, "session_id": "s1", "tool_name": "Skill", "tool_input": {"skill": name}})
     assert call() == 0  # no task yet
     _hook("pre-tool-use", repo, tool_name="mcp__wf__wf_attach", tool_input={"issue_url": ISSUE})
     assert call() == 2

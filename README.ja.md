@@ -12,11 +12,58 @@
 
 ![omge demo](docs/demo.gif)
 
+**ワークフローは普通の言葉で定義できます。**
+
+> グラフを作って: plan → implement → review → tests。テストを書く前に review を行い、review は omge:reviewer エージェントが担当し、そのエージェントは ponytail の review スキルも実行すること。review が失敗したら implement ではなく plan に戻る。今後、関連するタスクにはこのグラフを適用して。
+
+すると次のグラフになります。
+
+```yaml
+params:
+  review: '^/[A-Za-z0-9._/-]+\.md$'
+nodes:
+  - id: plan
+    do: Write the plan to PLAN.md.
+    check: test -n "$(find PLAN.md -newermt "$WF_READY_SINCE")"
+    on_fail: retry
+  - id: implement
+    after: [plan]
+    do: Implement the plan and commit.
+    check: test -n "$(git log --since="$WF_READY_SINCE")" && [ -z "$(git status --porcelain)" ]
+    on_fail: retry
+  - id: review
+    after: [implement]
+    agent: omge:reviewer
+    skill: ponytail:ponytail-review
+    do: >-
+      Launch omge:reviewer on HEAD and invoke ponytail:ponytail-review. The review goes to a file
+      outside the repo ending in `Verdict: pass` and `Reviewed SHA: <sha>`; wf_set review=<absolute path>.
+    check: |
+      grep -qx 'Verdict: pass' {review} && grep -qx "Reviewed SHA: $(git rev-parse HEAD)" {review}
+    on_fail: plan
+  - id: tests
+    after: [review]
+    do: Write the tests and commit.
+    check: uv run pytest -q
+    on_fail: retry
+  - id: retro
+    after: [tests]
+    do: Call wf_retro() and record a verdict.
+```
+
+`agent:` と `skill:` は別々のゲートです。review は omge:reviewer の起動と ponytail:ponytail-review の呼び出しの両方があって初めて閉じ、plan と implement はノードが ready になってからの作業だけを、review は現在の HEAD のレビューだけを受け付けます。
+
+「今後」は retro が担います。retro がこのグラフをライブラリに新しいタイプ（`new_type`、`match` の一文付き）として保存し、以後その一文に合う依頼はこのグラフから始まります。
+
 **あなたはグラフエンジニアリングだけに集中できます。** ステップとチェックを設計すれば omge がそれを強制し、作業はすでに持っているエージェントとスキル（superpowers、ponytail、自作のもの）が行います。
 
 - ノードはインストール済みの任意のエージェント（`agent:`）やスキル（`skill:`）を要求でき、omge はその呼び出しが行われるまでノードを止めます。
 - YAML は不要です。ノードで使うエージェントとスキルを `/omge:graph` に普通の言葉で伝えてください。
 - 詳しくは [手持ちのプラグインと連携](docs/compatibility.ja.md)。
+
+omge はグラフエンジニアリングのツールにすぎません。必要なスキルとエージェントは作業に合わせて自分で設計し、グラフに組み込んでください。
+
+![superpowers と ponytail のスキルが omge のノードを閉じる様子](docs/compat-demo.gif)
 
 > 実行時のメッセージは英語（デフォルト）または韓国語です。`OMGE_LANG` で切り替えます。
 

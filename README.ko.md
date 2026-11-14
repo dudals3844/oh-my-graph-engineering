@@ -12,11 +12,58 @@
 
 ![omge demo](docs/demo.gif)
 
+**이제 이렇게 당신의 workflow를 정의하세요.**
+
+> 그래프 만들어 줘: plan → implement → review → tests. 테스트를 쓰기 전에 review를 하고, review는 omge:reviewer 에이전트가 하며 그 에이전트는 ponytail review 스킬도 실행해야 해. review가 실패하면 implement가 아니라 plan으로 돌아가. 앞으로 관련 작업에는 이 그래프를 적용해 줘.
+
+그러면 이 그래프가 됩니다.
+
+```yaml
+params:
+  review: '^/[A-Za-z0-9._/-]+\.md$'
+nodes:
+  - id: plan
+    do: Write the plan to PLAN.md.
+    check: test -n "$(find PLAN.md -newermt "$WF_READY_SINCE")"
+    on_fail: retry
+  - id: implement
+    after: [plan]
+    do: Implement the plan and commit.
+    check: test -n "$(git log --since="$WF_READY_SINCE")" && [ -z "$(git status --porcelain)" ]
+    on_fail: retry
+  - id: review
+    after: [implement]
+    agent: omge:reviewer
+    skill: ponytail:ponytail-review
+    do: >-
+      Launch omge:reviewer on HEAD and invoke ponytail:ponytail-review. The review goes to a file
+      outside the repo ending in `Verdict: pass` and `Reviewed SHA: <sha>`; wf_set review=<absolute path>.
+    check: |
+      grep -qx 'Verdict: pass' {review} && grep -qx "Reviewed SHA: $(git rev-parse HEAD)" {review}
+    on_fail: plan
+  - id: tests
+    after: [review]
+    do: Write the tests and commit.
+    check: uv run pytest -q
+    on_fail: retry
+  - id: retro
+    after: [tests]
+    do: Call wf_retro() and record a verdict.
+```
+
+`agent:`와 `skill:`은 별개의 관문입니다. review는 omge:reviewer 실행과 ponytail:ponytail-review 호출이 모두 있어야 닫히고, plan과 implement는 노드가 준비된 뒤에 한 작업만, review는 현재 HEAD에 대한 리뷰만 받아들입니다.
+
+"앞으로"는 retro가 맡습니다. retro가 이 그래프를 라이브러리에 새 타입(`new_type`, `match` 문장 포함)으로 저장하고, 이후 그 문장에 맞는 요청은 이 그래프로 시작합니다.
+
 **사용자는 그래프 엔지니어링만 하면 됩니다.** 단계와 검증을 설계하면 omge가 그것을 강제하고, 일은 이미 가진 에이전트와 스킬(superpowers, ponytail, 직접 만든 것)이 합니다.
 
 - 노드는 설치된 어떤 에이전트(`agent:`)나 스킬(`skill:`)이든 요구할 수 있고, omge는 그 호출이 일어날 때까지 노드를 막습니다.
 - YAML을 쓸 필요가 없습니다. `/omge:graph`에 노드가 쓸 에이전트와 스킬을 평범한 말로 알려 주세요.
 - 자세히: [설치한 플러그인과 함께 동작](docs/compatibility.ko.md).
+
+omge는 그래프 엔지니어링 도구일 뿐입니다. 필요한 스킬과 에이전트는 사용자 작업에 맞게 직접 설계해서 사용하세요.
+
+![superpowers와 ponytail 스킬이 omge 노드를 닫는 모습](docs/compat-demo.gif)
 
 > 런타임 메시지는 영어(기본) 또는 한국어로 출력됩니다. 한국어로 보려면 `OMGE_LANG=ko`를 설정하세요.
 

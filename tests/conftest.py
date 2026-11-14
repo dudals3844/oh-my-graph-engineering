@@ -6,8 +6,11 @@ The real DB and library live under `~/.local/share/omge/`; nothing here may touc
 
 from __future__ import annotations
 
+import contextlib
+import io
 import json
 import subprocess
+import sys
 import textwrap
 
 import pytest
@@ -15,6 +18,26 @@ import pytest
 from omge import checks, graph, hooks, library, store
 
 REAL_EXEMPT_ROOTS = hooks.EXEMPT_ROOTS
+BLOCK_KEYS = {"stop": ("Stop", "additionalContext"),
+              "pre-tool-use": ("PreToolUse", "permissionDecisionReason")}
+
+
+def run_hook(event: str, payload: dict) -> int:
+    """`hooks.main` as Claude Code reads it: 2 when its stdout JSON blocks, with the reason on
+    stderr; any other stdout passes through. A block itself must exit 0: exit 2 is a hook error."""
+    out = io.StringIO()
+    with contextlib.redirect_stdout(out):
+        code = hooks.main(event, json.dumps(payload))
+    assert code == 0
+    text = out.getvalue()
+    spec = json.loads(text).get("hookSpecificOutput", {}) if text.startswith("{") else {}
+    name, key = BLOCK_KEYS.get(event, ("", ""))
+    if spec.get("hookEventName") != name or key not in spec or (
+            name == "PreToolUse" and spec.get("permissionDecision") != "deny"):
+        sys.stdout.write(text)
+        return 0
+    print(spec[key], file=sys.stderr)
+    return 2
 
 TEMPLATE = textwrap.dedent(
     """

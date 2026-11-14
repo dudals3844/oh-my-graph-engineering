@@ -21,6 +21,7 @@ from .conftest import (
     close,
     make_repo,
     reviewed_retro,
+    run_hook,
     start,
     state,
     statuses,
@@ -31,7 +32,7 @@ ISSUE2 = ISSUE.replace("/1", "/2")
 
 def _hook(event: str, cwd: str, session: str = "s1", **payload) -> int:
     store.register(store.connect(), session)  # a session started under this wf
-    return hooks.main(event, json.dumps({"cwd": cwd, "session_id": session, **payload}))
+    return run_hook(event, {"cwd": cwd, "session_id": session, **payload})
 
 
 def _own(cwd: str, session: str = "s1", issue: str = ISSUE) -> None:
@@ -850,7 +851,7 @@ def test_a_session_from_before_this_wf_is_not_enforced_but_told_once(workflows, 
     Path(repo, "dirty").touch()
 
     def hook(event: str, **payload) -> int:
-        return hooks.main(event, json.dumps({"cwd": repo, "session_id": "old", **payload}))
+        return run_hook(event, {"cwd": repo, "session_id": "old", **payload})
 
     assert hook("pre-tool-use", tool_name="Write", tool_input={"file_path": f"{repo}/a.py"}) == 0
     assert hook("pre-tool-use", tool_name="Bash", tool_input={"command": "wf waive h x"}) == 0

@@ -18,11 +18,22 @@ def test_hook_reads_stdin_and_stop_blocks(workflows, repo, monkeypatch, capsys):
     store.register(store.connect(), "s")
     own = {"cwd": repo, "session_id": "s", "tool_name": "mcp__wf__wf_attach",
            "tool_input": {"issue_url": ISSUE}}
-    for payload, event in ((own, "pre-tool-use"), ({"cwd": repo, "session_id": "s"}, "stop")):
+    write = {"cwd": repo, "session_id": "s2", "tool_name": "Write",
+             "tool_input": {"file_path": f"{repo}/x.py"}}
+    store.register(store.connect(), "s2")
+    outs = []
+    for payload, event in ((own, "pre-tool-use"), ({"cwd": repo, "session_id": "s"}, "stop"),
+                           (write, "pre-tool-use")):
         monkeypatch.setattr("sys.stdin", io.StringIO(json.dumps(payload)))
-        code = cli.main(["hook", event])
-    assert code == 2
-    assert "`a` exit=1" in capsys.readouterr().err
+        assert cli.main(["hook", event]) == 0  # exit 2 with stderr would render as a hook error
+        captured = capsys.readouterr()
+        assert not captured.err
+        outs.append(captured.out)
+    stop = json.loads(outs[1])["hookSpecificOutput"]
+    assert stop["hookEventName"] == "Stop" and "`a` exit=1" in stop["additionalContext"]
+    deny = json.loads(outs[2])["hookSpecificOutput"]
+    assert deny["hookEventName"] == "PreToolUse" and deny["permissionDecision"] == "deny"
+    assert deny["permissionDecisionReason"]
 
 
 def test_status(workflows, repo, capsys, monkeypatch):

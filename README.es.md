@@ -12,11 +12,58 @@
 
 ![omge demo](docs/demo.gif)
 
+**Define tu flujo de trabajo con palabras normales.**
+
+> Hazme un grafo: plan → implement → review → tests. La revisión va antes de escribir los tests, la hace el agente omge:reviewer, y ese agente también debe ejecutar el skill de revisión de ponytail. Si la revisión falla, vuelve a plan, no a implement. De ahora en adelante, aplica este grafo a las tareas relacionadas.
+
+Se convierte en este grafo:
+
+```yaml
+params:
+  review: '^/[A-Za-z0-9._/-]+\.md$'
+nodes:
+  - id: plan
+    do: Write the plan to PLAN.md.
+    check: test -n "$(find PLAN.md -newermt "$WF_READY_SINCE")"
+    on_fail: retry
+  - id: implement
+    after: [plan]
+    do: Implement the plan and commit.
+    check: test -n "$(git log --since="$WF_READY_SINCE")" && [ -z "$(git status --porcelain)" ]
+    on_fail: retry
+  - id: review
+    after: [implement]
+    agent: omge:reviewer
+    skill: ponytail:ponytail-review
+    do: >-
+      Launch omge:reviewer on HEAD and invoke ponytail:ponytail-review. The review goes to a file
+      outside the repo ending in `Verdict: pass` and `Reviewed SHA: <sha>`; wf_set review=<absolute path>.
+    check: |
+      grep -qx 'Verdict: pass' {review} && grep -qx "Reviewed SHA: $(git rev-parse HEAD)" {review}
+    on_fail: plan
+  - id: tests
+    after: [review]
+    do: Write the tests and commit.
+    check: uv run pytest -q
+    on_fail: retry
+  - id: retro
+    after: [tests]
+    do: Call wf_retro() and record a verdict.
+```
+
+`agent:` y `skill:` son puertas independientes: review solo se cierra tras lanzar omge:reviewer y llamar a ponytail:ponytail-review, y plan e implement solo aceptan trabajo hecho desde que su nodo quedó listo, y review solo una revisión del HEAD actual.
+
+«De ahora en adelante» lo hace el retro: guarda este grafo en tu biblioteca como un tipo nuevo (`new_type`, con una frase `match`), y las peticiones que encajen con esa frase empiezan con él.
+
 **Tú solo haces la ingeniería del grafo.** Diseña los pasos y los checks; omge los hace cumplir; tus agentes y skills de siempre (superpowers, ponytail, los tuyos) hacen el trabajo.
 
 - Un nodo puede exigir cualquier agente (`agent:`) o skill (`skill:`) instalado; omge lo retiene hasta que esa llamada ocurra.
 - Sin escribir YAML: dile a `/omge:graph` con palabras normales qué agente y skill debe usar un nodo.
 - Más: [Funciona con tus plugins](docs/compatibility.es.md).
+
+omge es solo una herramienta de ingeniería de grafos. Diseña tú mismo los skills y agentes que tu trabajo necesita y conéctalos al grafo.
+
+![skills de superpowers y ponytail cerrando nodos de omge](docs/compat-demo.gif)
 
 > Los mensajes en tiempo de ejecución están en inglés (por defecto) o en coreano, según `OMGE_LANG`.
 

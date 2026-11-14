@@ -2,18 +2,12 @@
 
 # Funciona con tus plugins
 
+omge es solo una herramienta de ingeniería de grafos. Diseña tú mismo los skills y agentes que tu trabajo necesita y conéctalos al grafo.
+
 omge no reemplaza tus agentes ni tus skills. Decide **qué paso se ejecuta y cuándo, y qué demuestra que está
 hecho**; el trabajo lo hacen los agentes y skills que ya tienes. Tú solo diseñas el grafo.
 
-## Cómo funciona
-
-- Un nodo puede exigir cualquier agente (`agent:`) y/o skill (`skill:`) instalado.
-- Exigir el agente es lo predeterminado (`agent_mode: require`); `agent_mode: recommend` solo lo sugiere.
-- omge:wf bloquea el nodo hasta que ese lanzamiento de Agent o esa llamada a Skill ocurra mientras el nodo
-  está listo. Una llamada a Skill anterior se rechaza y no cuenta.
-- Una llamada a Skill hecha dentro de un subagente también cuenta: llega con la sesión del padre.
-- `agent:` y `skill:` aceptan una lista; cualquiera de sus elementos la satisface.
-- Los nombres deben coincidir exactamente. Usa el nombre `plugin:skill` que muestra tu lista de `/skills` (o el plugin).
+![skills de superpowers y ponytail cerrando nodos de omge](compat-demo.gif)
 
 ## Sin escribir YAML
 

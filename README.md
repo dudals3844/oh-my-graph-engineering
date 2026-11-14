@@ -12,11 +12,58 @@
 
 ![omge demo](docs/demo.gif)
 
+**Define your workflow in plain words.**
+
+> Make me a graph: plan → implement → review → tests. Review must happen before writing tests, done by the omge:reviewer agent, and that agent must also run the ponytail review skill. If the review fails, go back to plan, not implement. From now on, apply this graph to related tasks.
+
+It becomes this graph:
+
+```yaml
+params:
+  review: '^/[A-Za-z0-9._/-]+\.md$'
+nodes:
+  - id: plan
+    do: Write the plan to PLAN.md.
+    check: test -n "$(find PLAN.md -newermt "$WF_READY_SINCE")"
+    on_fail: retry
+  - id: implement
+    after: [plan]
+    do: Implement the plan and commit.
+    check: test -n "$(git log --since="$WF_READY_SINCE")" && [ -z "$(git status --porcelain)" ]
+    on_fail: retry
+  - id: review
+    after: [implement]
+    agent: omge:reviewer
+    skill: ponytail:ponytail-review
+    do: >-
+      Launch omge:reviewer on HEAD and invoke ponytail:ponytail-review. The review goes to a file
+      outside the repo ending in `Verdict: pass` and `Reviewed SHA: <sha>`; wf_set review=<absolute path>.
+    check: |
+      grep -qx 'Verdict: pass' {review} && grep -qx "Reviewed SHA: $(git rev-parse HEAD)" {review}
+    on_fail: plan
+  - id: tests
+    after: [review]
+    do: Write the tests and commit.
+    check: uv run pytest -q
+    on_fail: retry
+  - id: retro
+    after: [tests]
+    do: Call wf_retro() and record a verdict.
+```
+
+`agent:` and `skill:` are separate gates: review closes only after an omge:reviewer launch and a ponytail:ponytail-review call, and plan and implement accept only work done since their node became ready, review only a review of the current HEAD.
+
+"From now on" is the retro: it saves this graph to your library as a new type (`new_type`, with a `match` sentence), and later requests that match it start with this graph.
+
 **You only do the graph engineering.** Design the steps and the checks; omge enforces them; your existing agents and skills (superpowers, ponytail, your own) do the work.
 
 - A node can require any installed agent (`agent:`) or skill (`skill:`); omge holds it until that call happens.
 - No YAML needed: tell `/omge:graph` in plain words which agent and skill a node should use.
 - More: [Works with your plugins](docs/compatibility.md).
+
+omge is just a graph engineering tool. Design the skills and agents your work needs yourself and plug them into the graph.
+
+![superpowers and ponytail skills closing omge nodes](docs/compat-demo.gif)
 
 ## Why
 

@@ -15,7 +15,7 @@ import pytest
 
 from omge import checks, graph, hooks, library, store
 
-from .conftest import ISSUE, reviewed_retro, start, state, statuses
+from .conftest import ISSUE, reviewed_retro, run_hook, start, state, statuses
 
 CYCLE = textwrap.dedent(
     """
@@ -223,7 +223,7 @@ def test_wf_fail_grants_ownership_and_shows_the_graph(cycle, repo):
     store.register(store.connect(), "s1")
     payload = {"cwd": repo, "session_id": "s1", "tool_name": "mcp__wf__wf_fail",
                "tool_input": {"issue_url": ISSUE, "node": "test", "reason": "red"}}
-    assert hooks.main("pre-tool-use", json.dumps(payload)) == 0
+    assert run_hook("pre-tool-use", payload) == 0
     assert [t["id"] for t in store.owned(store.connect(), "s1")] == [cycle]
     shown = hooks.post_tool_use(store.connect(), "s1", "mcp__wf__wf_fail", payload["tool_input"])
     assert "[test] ─✗─► ↺ implement (max 2)" in shown["systemMessage"]

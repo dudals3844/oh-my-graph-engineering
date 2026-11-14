@@ -10,7 +10,7 @@ import pytest
 
 from omge import checks, graph, hooks, server, store
 
-from .conftest import ISSUE, close, start
+from .conftest import ISSUE, close, run_hook, start
 
 AGENTED = """
 type: agented
@@ -37,7 +37,7 @@ def tid(workflows, repo):
 
 def _hook(event: str, cwd: str, **payload) -> int:
     store.register(store.connect(), "s1")
-    return hooks.main(event, json.dumps({"cwd": cwd, "session_id": "s1", **payload}))
+    return run_hook(event, {"cwd": cwd, "session_id": "s1", **payload})
 
 
 def _own(repo: str) -> None:

@@ -12,11 +12,58 @@
 
 ![omge demo](docs/demo.gif)
 
+**用自然语言定义你的工作流。**
+
+> 帮我做一个图：plan → implement → review → tests。写测试之前先做 review，review 由 omge:reviewer 智能体完成，并且该智能体还必须运行 ponytail 的 review 技能。review 失败时回到 plan，而不是 implement。以后相关任务都套用这个图。
+
+它会变成这个图：
+
+```yaml
+params:
+  review: '^/[A-Za-z0-9._/-]+\.md$'
+nodes:
+  - id: plan
+    do: Write the plan to PLAN.md.
+    check: test -n "$(find PLAN.md -newermt "$WF_READY_SINCE")"
+    on_fail: retry
+  - id: implement
+    after: [plan]
+    do: Implement the plan and commit.
+    check: test -n "$(git log --since="$WF_READY_SINCE")" && [ -z "$(git status --porcelain)" ]
+    on_fail: retry
+  - id: review
+    after: [implement]
+    agent: omge:reviewer
+    skill: ponytail:ponytail-review
+    do: >-
+      Launch omge:reviewer on HEAD and invoke ponytail:ponytail-review. The review goes to a file
+      outside the repo ending in `Verdict: pass` and `Reviewed SHA: <sha>`; wf_set review=<absolute path>.
+    check: |
+      grep -qx 'Verdict: pass' {review} && grep -qx "Reviewed SHA: $(git rev-parse HEAD)" {review}
+    on_fail: plan
+  - id: tests
+    after: [review]
+    do: Write the tests and commit.
+    check: uv run pytest -q
+    on_fail: retry
+  - id: retro
+    after: [tests]
+    do: Call wf_retro() and record a verdict.
+```
+
+`agent:` 和 `skill:` 是两道独立的关卡：review 必须既启动了 omge:reviewer、又调用了 ponytail:ponytail-review 才能关闭；plan 和 implement 只接受节点就绪之后完成的工作，review 只接受针对当前 HEAD 的评审。
+
+“以后”由 retro 实现：retro 把这个图作为新类型（`new_type`，附一句 `match`）存入库中，之后与这句话匹配的请求都从这个图开始。
+
 **你只需专注于图工程。** 设计步骤和校验，omge 负责强制执行，具体工作由你已有的智能体和技能（superpowers、ponytail、你自己的）完成。
 
 - 节点可以要求任意已安装的智能体（`agent:`）或技能（`skill:`），omge 会拦住节点直到该调用发生。
 - 无需编写 YAML：用自然语言告诉 `/omge:graph` 节点该用哪个智能体和技能。
 - 详见 [与已安装的插件协同工作](docs/compatibility.zh-CN.md)。
+
+omge 只是一个图工程工具。工作所需的技能和智能体，请按你的任务自行设计，再接入图中使用。
+
+![superpowers 和 ponytail 技能完成 omge 节点](docs/compat-demo.gif)
 
 > 运行时消息为英文（默认）或韩文，通过 `OMGE_LANG` 切换。
 
