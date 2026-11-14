@@ -48,7 +48,7 @@ WF_TOOL = re.compile(r"^mcp__.+__wf_\w+$")
 GRANTING = re.compile(r"__wf_(start|attach|complete|fail|revise|set|retro)$")
 #: The calls after which the user must see the graph: freshly drawn, moved on by
 #: `wf_complete`, or reopened by `wf_fail` — a stale `▶` reads as stuck .
-SHOWN_TOOLS = re.compile(r"__wf_(start|attach|revise|complete|fail)$")
+SHOWN_TOOLS = re.compile(r"__wf_(start|attach|status|revise|complete|fail)$")
 #: The id in a drawn graph's head line (`graph.render`): the first `task #<id>`.
 TASK_ID = re.compile(r"task #(\d+)")
 #: Matched in command position only, after `_code_only` has blanked quoted
@@ -721,7 +721,7 @@ def post_tool_use(conn: sqlite3.Connection, session: str, tool: str, tool_input:
         return None
     # Granted again after success: the PreToolUse grant can lose a race with
     # another session's `wf_start` on the same issue, or predate the row too much.
-    if session and not tool.endswith("__wf_revise"):
+    if session and GRANTING.search(tool) and not tool.endswith("__wf_revise"):
         _own(conn, session, task["issue_url"])
     if tool.endswith("__wf_revise"):
         text = graph.revise_text(conn, task)
@@ -889,6 +889,19 @@ def _grace(conn: sqlite3.Connection, event: str, session: str) -> int:
     return 0
 
 
+def _show_only(event: str, tool: str, tool_input: dict, response: object) -> int:
+    """Outside enforcement (cwd not in git, or a session from before this wf) a wf tool still
+    draws its graph for the user: display only, so no session is granted and errors pass."""
+    if event != "post-tool-use" or not SHOWN_TOOLS.search(tool) or not WF_TOOL.match(tool):
+        return 0
+    try:
+        if out := post_tool_use(store.connect(), "", tool, tool_input, response, False, None):
+            print(json.dumps(out, ensure_ascii=False))
+    except Exception as exc:  # display must never break a session that is not enforced
+        print(i18n.t("hooks.hook_error", event=event, exc=repr(exc)), file=sys.stderr)
+    return 0
+
+
 def main(event: str, stdin: str) -> int:  # noqa: C901
     # Scope first, and fail OPEN if it cannot be decided (bad stdin, no git): a
     # wf that cannot tell whether a session is in scope must not trap
@@ -906,13 +919,14 @@ def main(event: str, stdin: str) -> int:  # noqa: C901
         print(i18n.t("hooks.scope_error", event=event, exc=repr(exc)), file=sys.stderr)
         return 0
     if home is None:
-        return 0
+        return _show_only(event, tool, tool_input, data.get("tool_response"))
     try:
         conn = store.connect()
         if event == "session-start" and session:
             store.register(conn, session)
         elif session and not store.registered(conn, session):
-            return _grace(conn, event, session)
+            _grace(conn, event, session)
+            return _show_only(event, tool, tool_input, data.get("tool_response"))
         if event == "stop":
             return _stop_event(conn, home, session, bool(data.get("background_tasks")))
         if event == "pre-tool-use":

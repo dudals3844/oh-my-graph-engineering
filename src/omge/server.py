@@ -91,8 +91,7 @@ def wf_start(type: str, dir: str, issue_url: str | None = None, title: str | Non
     the PR by the declared `pr` param, `{pr}`, or `WF_PR`, not by the checkout
     branch. A check that cannot fail
     (`true`) is refused. `new` is refused when a similar type exists unless `new_reason`
-    says why not. Paste the returned graph verbatim in your next reply to the user before
-    doing the work. A library type is a starting point, not the user's plan: before the
+    says why not. The user already sees the drawn graph; do not repeat it. A library type is a starting point, not the user's plan: before the
     first node, every step the user asked for (a deploy, a runtime/e2e test, ...) must be
     some node's check, else add it with wf_revise — another node's `do` text is not one.
     When the user changes the request, wf_revise before the next node: pass only the
@@ -100,23 +99,24 @@ def wf_start(type: str, dir: str, issue_url: str | None = None, title: str | Non
     conn = store.connect()
     tid = graph_.start(conn, type, dir, issue_url, params or {}, graph, new_reason, title)
     # `server.coverage` goes on wf_start only: the moment a template stands in for the request.
-    return graph_.status_text(conn, store.get_task(conn, tid)) + "\n" + i18n.t("server.coverage")
+    return (graph_.status_text(conn, store.get_task(conn, tid), drawn=False) + "\n"
+            + i18n.t("server.coverage"))
 
 
 @_tool
 def wf_attach(issue_url: str | None = None, task: int | None = None) -> str:
-    """Take over an open task whose owner session went away. Paste the returned graph
-    verbatim in your next reply to the user before doing the work."""
+    """Take over an open task whose owner session went away. The user already sees the
+    drawn graph; do not repeat it."""
     conn = store.connect()
-    return graph_.status_text(conn, _task(conn, issue_url, task))
+    return graph_.status_text(conn, _task(conn, issue_url, task), drawn=False)
 
 
 @_tool
 def wf_status(issue_url: str | None = None, task: int | None = None) -> str:
     """The task graph, ready nodes with their `do`/`pitfalls`, and the last failure output.
-    Show the graph to the user as returned."""
+    The user already sees the drawn graph; do not repeat it."""
     conn = store.connect()
-    return graph_.status_text(conn, _task(conn, issue_url, task))
+    return graph_.status_text(conn, _task(conn, issue_url, task), drawn=False)
 
 
 @_tool
