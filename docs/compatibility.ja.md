@@ -1,4 +1,4 @@
-[English](compatibility.md) | [Korean](compatibility.ko.md) | [Japanese](compatibility.ja.md) | [Chinese](compatibility.zh-CN.md) | [Spanish](compatibility.es.md)
+[English](compatibility.md) | [한국어](compatibility.ko.md) | [日本語](compatibility.ja.md) | [简体中文](compatibility.zh-CN.md) | [Español](compatibility.es.md)
 
 # 手持ちのプラグインと連携
 

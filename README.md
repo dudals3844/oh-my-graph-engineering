@@ -1,4 +1,4 @@
-[English](README.md) | [Korean](README.ko.md) | [Japanese](README.ja.md) | [Chinese](README.zh-CN.md) | [Spanish](README.es.md)
+[English](README.md) | [한국어](README.ko.md) | [日本語](README.ja.md) | [简体中文](README.zh-CN.md) | [Español](README.es.md)
 
 <h1 align="center">omge</h1>
 
@@ -169,7 +169,7 @@ give it a new `name` and another `model:` alias, and reference it in a node's `a
 
 | Skill | Use |
 |---|---|
-| `/omge:setup` | checks uv, warns about duplicate hooks, offers ponytail |
+| `/omge:setup` | picks the message language, checks uv, warns about duplicate hooks, offers ponytail |
 | `/omge:graph` | reference for writing graphs and library types |
 | `omge:writing-a-plan` | used by plan nodes |
 | `omge:improving-skills` | patches your skills in `~/.claude/skills` from retro evidence |
@@ -178,7 +178,7 @@ give it a new `name` and another `model:` alias, and reference it in a node's `a
 
 | Variable | Effect |
 |---|---|
-| `OMGE_LANG` | message language: `en` (default) or `ko`; without it the locale comes from `LC_ALL`, `LC_MESSAGES` or `LANG` (e.g. `ko_KR.UTF-8`) |
+| `OMGE_LANG` | message language: `en` (default) or `ko`; without it the locale comes from `LC_ALL`, `LC_MESSAGES` or `LANG` (e.g. `ko_KR.UTF-8`); `/omge:setup` sets it |
 | `WF_DB` | path of the task database (default `~/.local/share/omge/wf.db`) |
 | `WF_LIBRARY` | path of the type library, a git repository (default `~/.local/share/omge/library/`) |
 

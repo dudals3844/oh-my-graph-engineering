@@ -1,4 +1,4 @@
-[English](README.md) | [Korean](README.ko.md) | [Japanese](README.ja.md) | [Chinese](README.zh-CN.md) | [Spanish](README.es.md)
+[English](README.md) | [한국어](README.ko.md) | [日本語](README.ja.md) | [简体中文](README.zh-CN.md) | [Español](README.es.md)
 
 <h1 align="center">omge</h1>
 
@@ -168,7 +168,7 @@ Claude 用 `wf_start` 开始任务（库类型，或带一次性图的 `type="ne
 
 | 技能 | 用途 |
 |---|---|
-| `/omge:setup` | 检查 uv，提示重复钩子，提供 ponytail |
+| `/omge:setup` | 选择消息语言，检查 uv，提示重复钩子，提供 ponytail |
 | `/omge:graph` | 编写图和库类型的参考 |
 | `omge:writing-a-plan` | 供 plan 节点使用 |
 | `omge:improving-skills` | 根据复盘证据修改 `~/.claude/skills` 中的技能 |
@@ -177,7 +177,7 @@ Claude 用 `wf_start` 开始任务（库类型，或带一次性图的 `type="ne
 
 | 变量 | 作用 |
 |---|---|
-| `OMGE_LANG` | 消息语言：`en`（默认）或 `ko`；未设置时从 `LC_ALL`、`LC_MESSAGES` 或 `LANG` 读取区域设置（例如 `ko_KR.UTF-8`） |
+| `OMGE_LANG` | 消息语言：`en`（默认）或 `ko`；未设置时从 `LC_ALL`、`LC_MESSAGES` 或 `LANG` 读取区域设置（例如 `ko_KR.UTF-8`）；可通过 `/omge:setup` 设置 |
 | `WF_DB` | 任务数据库路径（默认 `~/.local/share/omge/wf.db`） |
 | `WF_LIBRARY` | 类型库路径，是一个 git 仓库（默认 `~/.local/share/omge/library/`） |
 

@@ -1,4 +1,4 @@
-[English](README.md) | [Korean](README.ko.md) | [Japanese](README.ja.md) | [Chinese](README.zh-CN.md) | [Spanish](README.es.md)
+[English](README.md) | [한국어](README.ko.md) | [日本語](README.ja.md) | [简体中文](README.zh-CN.md) | [Español](README.es.md)
 
 <h1 align="center">omge</h1>
 
@@ -169,7 +169,7 @@ Claude는 `wf_start`로 작업을 시작하고(라이브러리 타입, 또는 �
 
 | 스킬 | 용도 |
 |---|---|
-| `/omge:setup` | uv 확인, 중복 훅 경고, ponytail 제안 |
+| `/omge:setup` | 메시지 언어 선택, uv 확인, 중복 훅 경고, ponytail 제안 |
 | `/omge:graph` | 그래프와 라이브러리 타입 작성 레퍼런스 |
 | `omge:writing-a-plan` | plan 노드에서 사용 |
 | `omge:improving-skills` | 회고 근거로 `~/.claude/skills`의 스킬을 수정 |
@@ -178,7 +178,7 @@ Claude는 `wf_start`로 작업을 시작하고(라이브러리 타입, 또는 �
 
 | 변수 | 효과 |
 |---|---|
-| `OMGE_LANG` | 메시지 언어: `en`(기본) 또는 `ko`. 없으면 `LC_ALL`, `LC_MESSAGES`, `LANG`에서 로케일을 읽습니다(예: `ko_KR.UTF-8`) |
+| `OMGE_LANG` | 메시지 언어: `en`(기본) 또는 `ko`. 없으면 `LC_ALL`, `LC_MESSAGES`, `LANG`에서 로케일을 읽습니다(예: `ko_KR.UTF-8`). `/omge:setup`에서 설정할 수 있습니다 |
 | `WF_DB` | 작업 데이터베이스 경로 (기본 `~/.local/share/omge/wf.db`) |
 | `WF_LIBRARY` | git 저장소인 타입 라이브러리 경로 (기본 `~/.local/share/omge/library/`) |
 

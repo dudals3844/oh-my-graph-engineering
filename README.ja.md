@@ -1,4 +1,4 @@
-[English](README.md) | [Korean](README.ko.md) | [Japanese](README.ja.md) | [Chinese](README.zh-CN.md) | [Spanish](README.es.md)
+[English](README.md) | [한국어](README.ko.md) | [日本語](README.ja.md) | [简体中文](README.zh-CN.md) | [Español](README.es.md)
 
 <h1 align="center">omge</h1>
 
@@ -169,7 +169,7 @@ Claude は `wf_start` でタスクを開始し（ライブラリタイプ、ま�
 
 | スキル | 用途 |
 |---|---|
-| `/omge:setup` | uv の確認、フック重複の警告、ponytail の提案 |
+| `/omge:setup` | メッセージ言語の選択、uv の確認、フック重複の警告、ponytail の提案 |
 | `/omge:graph` | グラフとライブラリタイプを書くためのリファレンス |
 | `omge:writing-a-plan` | plan ノードで使用 |
 | `omge:improving-skills` | レトロの根拠から `~/.claude/skills` のスキルを修正 |
@@ -178,7 +178,7 @@ Claude は `wf_start` でタスクを開始し（ライブラリタイプ、ま�
 
 | 変数 | 効果 |
 |---|---|
-| `OMGE_LANG` | メッセージの言語: `en`（デフォルト）または `ko`。未設定時は `LC_ALL`、`LC_MESSAGES`、`LANG` からロケールを読みます（例: `ko_KR.UTF-8`） |
+| `OMGE_LANG` | メッセージの言語: `en`（デフォルト）または `ko`。未設定時は `LC_ALL`、`LC_MESSAGES`、`LANG` からロケールを読みます（例: `ko_KR.UTF-8`）。`/omge:setup` で設定できます |
 | `WF_DB` | タスクデータベースのパス（デフォルト `~/.local/share/omge/wf.db`） |
 | `WF_LIBRARY` | git リポジトリであるタイプライブラリのパス（デフォルト `~/.local/share/omge/library/`） |
 
