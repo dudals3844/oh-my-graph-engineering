@@ -529,14 +529,29 @@ def test_ownerless_listing_does_not_recheck_human_nodes(workflows, repo):
     assert store.node_rows(store.connect(), tid)["m"]["status"] == "pending"
 
 
+def test_graph_is_shown_outside_git_and_to_an_unregistered_session(workflows, repo, tmp_path, capsys):
+    # Claude started in a non-git dir (e.g. ~) still drives a task in a repo through MCP.
+    start(repo)
+    plain = tmp_path / "plain"
+    plain.mkdir()
+    for cwd, session in ((str(plain), "s1"), (repo, "never-registered")):
+        assert run_hook("post-tool-use", {"cwd": cwd, "session_id": session,
+                                          "tool_name": "mcp__wf__wf_start",
+                                          "tool_input": {"issue_url": ISSUE}}) == 0
+        assert "[▶ a] ──► [· b]" in json.loads(capsys.readouterr().out)["systemMessage"]
+    assert store.owned(store.connect(), "s1") == []  # display only, no authority granted
+
+
 def test_post_tool_use_shows_the_graph_to_the_user(workflows, repo, capsys):
     start(repo)
     assert _hook("post-tool-use", repo, tool_name="mcp__wf__wf_start",
                  tool_input={"issue_url": ISSUE}) == 0
     shown = json.loads(capsys.readouterr().out)["systemMessage"]
     assert shown.startswith("demo @") and "[▶ a] ──► [· b]" in shown
-    for tool in ("mcp__wf__wf_status", "Bash"):
-        assert _hook("post-tool-use", repo, tool_name=tool, tool_input={"issue_url": ISSUE}) == 0
+    assert _hook("post-tool-use", repo, tool_name="mcp__wf__wf_status",
+                 tool_input={"issue_url": ISSUE}) == 0
+    assert "[▶ a] ──► [· b]" in json.loads(capsys.readouterr().out)["systemMessage"]
+    assert _hook("post-tool-use", repo, tool_name="Bash", tool_input={"issue_url": ISSUE}) == 0
     assert _hook("post-tool-use", repo, tool_name="mcp__wf__wf_attach",
                  tool_input={"issue_url": ISSUE2}) == 0  # no such task: silent
     assert capsys.readouterr().out == ""

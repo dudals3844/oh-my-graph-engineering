@@ -568,7 +568,9 @@ def test_wf_complete_set_fail_return_a_header_not_the_drawing(cycle, repo):
     for out in outs:
         assert not set("┌┏─│▼") & set(out) and "- ready `" in out
     assert "failed" in outs[1] and "implement" in outs[2]
-    assert "─" in call("wf_status")
+    # The user sees the drawing as the PostToolUse systemMessage; the model gets none of it.
+    for out in (call("wf_status"), call("wf_attach")):
+        assert not set("┌┏─│▼") & set(out) and f"task #{cycle}" in out
 
 
 def test_a_closed_task_is_named_with_its_state_not_reported_missing(cycle):
