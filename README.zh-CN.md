@@ -58,6 +58,7 @@ claude plugin install omge@oh-my-graph-engineering
 首次使用时，uv 会按已提交的 `uv.lock` 从 PyPI 获取 omge 的 Python 依赖。
 如果没有安装 Python 3.12 或更高版本，uv 还会下载一个。
 除此之外不会下载任何内容，omge 也不发送任何遥测数据。
+恢复已有任务（SessionStart）时，可能会自动重新运行该任务的人工节点检查，这些检查可能会从 GitHub 读取信息（例如 PR 的合并状态）；这属于工作流检查，而不是遥测。
 
 > [!WARNING]
 > **重复的钩子：** 插件会注册自己的 SessionStart、UserPromptSubmit、Stop、PreToolUse 和 PostToolUse 钩子。

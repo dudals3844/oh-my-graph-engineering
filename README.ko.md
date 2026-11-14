@@ -59,6 +59,7 @@ claude plugin install omge@oh-my-graph-engineering
 처음 사용할 때 uv가 커밋된 `uv.lock`에 고정된 omge의 Python 의존성을 PyPI에서 받아옵니다.
 Python 3.12 이상이 설치되어 있지 않으면 uv가 그것도 내려받습니다.
 그 밖에는 아무것도 내려받지 않으며, omge는 텔레메트리를 보내지 않습니다.
+기존 작업을 재개하면(SessionStart) 그 작업의 사람 노드 검사가 자동으로 다시 실행될 수 있으며, 이 검사는 GitHub에서 정보를 읽을 수 있습니다(예: PR의 병합 상태). 이는 텔레메트리가 아니라 워크플로 검사입니다.
 
 > [!WARNING]
 > **중복 훅:** 플러그인은 자체 SessionStart, UserPromptSubmit, Stop, PreToolUse, PostToolUse 훅을 등록합니다.

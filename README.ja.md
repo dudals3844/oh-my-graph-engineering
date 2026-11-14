@@ -59,6 +59,7 @@ claude plugin install omge@oh-my-graph-engineering
 初回の使用時に、uv がコミット済みの `uv.lock` に固定された omge の Python 依存関係を PyPI から取得します。
 Python 3.12 以降がインストールされていない場合は、uv がそれもダウンロードします。
 それ以外は何もダウンロードせず、omge はテレメトリを送信しません。
+既存のタスクを再開すると（SessionStart）、そのタスクの人間ノードのチェックが自動的に再実行されることがあり、そのチェックは GitHub から情報を読み取る場合があります（例: PR のマージ状態）。これはテレメトリではなく、ワークフローのチェックです。
 
 > [!WARNING]
 > **フックの重複:** このプラグインは独自の SessionStart、UserPromptSubmit、Stop、PreToolUse、PostToolUse フックを登録します。

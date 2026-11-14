@@ -57,6 +57,7 @@ hooks and the `wf` MCP server run through it) and offers to install the optional
 On first use, uv resolves omge's Python dependencies from PyPI, pinned by the committed `uv.lock`.
 If no Python 3.12 or newer is installed, uv also downloads one. Nothing else is downloaded, and omge
 sends no telemetry.
+Resuming an existing task (SessionStart) can automatically re-run that task's human-node checks, which may read from GitHub (e.g. a PR's merge state); this is workflow checking, not telemetry.
 
 > [!WARNING]
 > **Duplicate hooks:** the plugin registers its own SessionStart, UserPromptSubmit, Stop, PreToolUse and

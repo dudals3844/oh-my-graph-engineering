@@ -1,0 +1,68 @@
+#!/usr/bin/env bash
+# Records docs/demo.gif: omge running inside a real Claude Code TUI session, driven through tmux.
+# Isolated: a throwaway HOME, CLAUDE_CONFIG_DIR and git repo; a copy of the plugin loads via --plugin-dir.
+# Auth comes from the caller's environment (CLAUDE_CODE_OAUTH_TOKEN or ANTHROPIC_API_KEY, and
+# ANTHROPIC_BASE_URL if set) and is never written to disk.
+# Needs tmux, claude, uv, asciinema 2.4 (pip) and agg (asciinema/agg release binary).
+# Usage: [CLAUDE=/path/to/claude] ASCIINEMA=/path/to/asciinema AGG=/path/to/agg bash docs/demo/claude_session.sh
+set -euo pipefail
+repo=$(cd "$(dirname "$0")/../.." && pwd)
+work=$(mktemp -d /tmp/omge-demo.XXXX)
+trap 'tmux -L omge-demo kill-session -t omge-demo 2>/dev/null || true; rm -rf "$work"' EXIT
+mkdir -p "$work/home/.claude" "$work/greeter" "$work/omge"
+# A copy, so the hook commands Claude Code echoes show no path of the real checkout.
+tar -C "$repo" --exclude=.venv --exclude=.git -cf - . | tar -C "$work/omge" -xf -
+cd "$work/greeter"
+git init -q -b main && printf 'print("hello")\n' > greet.py
+git -c user.name=demo -c user.email=demo@example.com add . &&
+  git -c user.name=demo -c user.email=demo@example.com commit -qm init
+git config user.name demo && git config user.email demo@example.com
+cat > "$work/home/.claude/.claude.json" <<EOF
+{"hasCompletedOnboarding": true, "theme": "dark", "projects": {"$PWD": {"hasTrustDialogAccepted": true}}}
+EOF
+echo '{"skipDangerousModePermissionPrompt": true, "spinnerTipsEnabled": false}' > "$work/home/.claude/settings.json"
+
+cast="$work/demo.cast"
+# --dangerously-skip-permissions is used ONLY because this session runs in the throwaway temp project and
+# config this script just created under $work. Never use it in a real project.
+claude_cmd="${CLAUDE:-claude} --model sonnet --plugin-dir $work/omge --dangerously-skip-permissions"
+tmux -L omge-demo kill-session -t omge-demo 2>/dev/null || true
+env -i PATH="$(dirname "$(command -v uv)"):$(dirname "$(command -v claude)"):/usr/bin:/bin" \
+  HOME="$work/home" CLAUDE_CONFIG_DIR="$work/home/.claude" TERM=xterm-256color LANG=C.UTF-8 PS1='$ ' DISABLE_AUTOUPDATER=1 \
+  UV_CACHE_DIR="$(uv cache dir)" ${ANTHROPIC_BASE_URL:+ANTHROPIC_BASE_URL="$ANTHROPIC_BASE_URL"} \
+  ${CLAUDE_CODE_OAUTH_TOKEN:+CLAUDE_CODE_OAUTH_TOKEN="$CLAUDE_CODE_OAUTH_TOKEN"} \
+  ${ANTHROPIC_API_KEY:+ANTHROPIC_API_KEY="$ANTHROPIC_API_KEY"} \
+  tmux -L omge-demo new-session -d -s omge-demo -x 110 -y 32 \
+  "${ASCIINEMA:-asciinema} rec -q --overwrite -i 2 -c '$claude_cmd' $cast"
+
+pane() { tmux -L omge-demo capture-pane -p -t omge-demo; }
+wait_for() {  # wait_for <regex> <seconds>
+  for ((i = 0; i < $2; i++)); do pane | grep -qE "$1" && return 0; sleep 1; done
+  echo "timed out waiting for: $1" >&2; pane >&2; exit 1
+}
+say() { tmux -L omge-demo send-keys -t omge-demo -l "$1"; sleep 1; tmux -L omge-demo send-keys -t omge-demo Enter; }
+plan_done() { python3 -c 'import sqlite3, sys; sys.exit(sqlite3.connect(sys.argv[1]).execute("SELECT 1 FROM node_state WHERE node = '"'plan'"' AND status = '"'done'"'").fetchone() is None)' "$work/home/.local/share/omge/wf.db" 2>/dev/null; }
+
+wait_for 'for shortcuts|bypass permissions' 60; sleep 2
+say 'Start the omge code-implementation workflow here for: add a --shout flag to greet.py, and show me the graph. Then end your turn at once. When the stop hook blocks you, do only the plan node (a two-line plan) and stop.'
+for ((i = 0; i < 300; i++)); do plan_done && break; sleep 1; done
+plan_done || { echo "plan never passed" >&2; pane >&2; exit 1; }
+sleep 8
+tmux -L omge-demo send-keys -t omge-demo Escape; sleep 2
+tmux -L omge-demo send-keys -t omge-demo C-c; sleep 1; tmux -L omge-demo send-keys -t omge-demo C-c
+for ((i = 0; i < 30; i++)); do tmux -L omge-demo has-session -t omge-demo 2>/dev/null || break; sleep 1; done
+
+# Blank the account usage notice, and end on "The plan node has passed": cut where the hook
+# blocks a second time (streak 2/), which only leads on to the stall.
+python3 -I - "$cast" "$work/trim.cast" <<'PY'
+import json, re, sys
+src, dst = open(sys.argv[1]), open(sys.argv[2], "w")
+dst.write(src.readline())
+for line in src:
+    t, kind, data = json.loads(line)
+    if re.search(r"streak\s+2/", re.sub(r"\x1b\[[0-9;?]*[A-Za-z]", " ", data)):
+        break
+    data = re.sub(r"You've used \d+% of your weekly limit[^\x1b]*", lambda m: " " * len(m.group()), data)
+    dst.write(json.dumps([t, kind, data]) + "\n")
+PY
+"${AGG:-agg}" --font-size 16 --idle-time-limit 2 --last-frame-duration 0.5 "$work/trim.cast" "$repo/docs/demo.gif"

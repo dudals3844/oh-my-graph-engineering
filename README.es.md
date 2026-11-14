@@ -59,6 +59,7 @@ Después ejecuta `/omge:setup` en Claude Code. Comprueba que [uv](https://pypi.o
 En el primer uso, uv resuelve las dependencias de Python de omge desde PyPI, fijadas por el `uv.lock`
 incluido en el repositorio. Si no hay un Python 3.12 o posterior instalado, uv también descarga uno. No se
 descarga nada más, y omge no envía telemetría.
+Reanudar una tarea existente (SessionStart) puede volver a ejecutar automáticamente las comprobaciones de los nodos humanos de esa tarea, que pueden leer datos de GitHub (por ejemplo, el estado de fusión de un PR); esto es comprobación del flujo de trabajo, no telemetría.
 
 > [!WARNING]
 > **Hooks duplicados:** el plugin registra sus propios hooks SessionStart, UserPromptSubmit, Stop, PreToolUse y
