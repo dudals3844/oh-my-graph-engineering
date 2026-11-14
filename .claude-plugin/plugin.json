@@ -1,6 +1,6 @@
 {
   "name": "omge",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Graph-enforced workflows for Claude Code: tasks are node graphs whose checks must pass, hooks block skipping steps, and retros improve a reusable graph library.",
   "author": {"name": "Youngminchoi"},
   "license": "MIT",
