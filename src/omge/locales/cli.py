@@ -4,14 +4,14 @@ EN: dict[str, str] = {
     "cli.description": "Tracks work as a graph and confirms completion through each step's"
                        " check, evidence and retro.\n"
                        "The CLI is for status and the automatic hooks. Work is managed by"
-                       " calling the wf-mcp tools.",
+                       " calling the omge-mcp tools.",
     "cli.epilog": """Quick start (CLI)
-  wf status                 ready nodes of the current worktree and a summary of open tasks
-  wf status --all           graph, current node and failure reasons of every open task
-  wf status --help          status help
-  wf hook --help            the automatic Claude Code hooks (not for starting work)
+  omge status               ready nodes of the current worktree and a summary of open tasks
+  omge status --all         graph, current node and failure reasons of every open task
+  omge status --help        status help
+  omge hook --help          the automatic Claude Code hooks (not for starting work)
 
-Agent workflow (wf-mcp tool calls, not shell commands)
+Agent workflow (omge-mcp tool calls, not shell commands)
   1. Find the right type with wf_list_types() and start the work with wf_start.
      wf_start(type="issue-resolution", dir="/worktree", issue_url="<GitHub issue URL>")
      Without an issue, give title instead of issue_url. The returned task ID names later calls.
@@ -42,7 +42,7 @@ Review, plan and approval rules
 Status and troubleshooting
   ✔ done  ▶ ready  · waiting  ⊘ skipped  ⏸ external wait
   Remaining nodes or a pending retro block the session from ending. Do not skip without evidence; check wf_status.
-  Updating the install leaves a running wf-mcp process as it is. Reconnect MCP or start a new session.
+  Updating the install leaves a running omge-mcp process as it is. Reconnect MCP or start a new session.
 """,
     "cli.hook_help": "the hook Claude Code calls automatically with JSON stdin",
     "cli.hook_description": "For the Claude Code hooks. It takes an event and JSON stdin;"
@@ -54,22 +54,22 @@ Status and troubleshooting
                               " failure reasons of every open task. It never starts or"
                               " completes a task.",
     "cli.all_help": "graph, ready nodes and failure reasons of every open task",
-    "cli.no_open": "wf: no open tasks",
-    "cli.other_dirs": "wf: open tasks in other directories: {n}",
-    "cli.no_other": "wf: no other open tasks",
-    "cli.none_here": "wf: no open task in this directory · other directories: {n}",
+    "cli.no_open": "omge:wf: no open tasks",
+    "cli.other_dirs": "omge:wf: open tasks in other directories: {n}",
+    "cli.no_other": "omge:wf: no other open tasks",
+    "cli.none_here": "omge:wf: no open task in this directory · other directories: {n}",
 }
 
 KO: dict[str, str] = {
     "cli.description": "작업을 그래프로 추적하고, 각 단계의 check·증거·회고로 완료를 확인합니다.\n"
-                       "CLI는 상태 조회와 자동 hook용입니다. 작업 관리는 wf-mcp 도구를 호출합니다.",
+                       "CLI는 상태 조회와 자동 hook용입니다. 작업 관리는 omge-mcp 도구를 호출합니다.",
     "cli.epilog": """빠른 시작 (CLI)
-  wf status                 현재 worktree의 ready 노드와 열린 task 요약
-  wf status --all           열린 task 전체의 그래프·현재 노드·실패 사유
-  wf status --help          상태 조회 도움말
-  wf hook --help            Claude Code 자동 hook 안내 (일반 작업 시작용이 아님)
+  omge status               현재 worktree의 ready 노드와 열린 task 요약
+  omge status --all         열린 task 전체의 그래프·현재 노드·실패 사유
+  omge status --help        상태 조회 도움말
+  omge hook --help          Claude Code 자동 hook 안내 (일반 작업 시작용이 아님)
 
-에이전트 작업 흐름 (wf-mcp 도구 호출이며 셸 명령이 아님)
+에이전트 작업 흐름 (omge-mcp 도구 호출이며 셸 명령이 아님)
   1. wf_list_types()로 맞는 유형을 찾고 wf_start로 작업을 시작합니다.
      wf_start(type="issue-resolution", dir="/worktree", issue_url="<GitHub 이슈 URL>")
      이슈가 없으면 issue_url 대신 title을 줍니다. 반환된 task ID로 이후 호출을 식별합니다.
@@ -100,7 +100,7 @@ KO: dict[str, str] = {
 상태·문제 해결
   ✔ 완료  ▶ 실행 가능  · 대기  ⊘ 건너뜀  ⏸ 외부 대기
   남은 노드·회고가 있으면 세션 종료가 차단됩니다. 증거 없이 건너뛰지 말고 wf_status로 확인합니다.
-  설치를 갱신해도 기존 wf-mcp 프로세스는 그대로입니다. MCP를 재연결하거나 새 세션을 시작합니다.
+  설치를 갱신해도 기존 omge-mcp 프로세스는 그대로입니다. MCP를 재연결하거나 새 세션을 시작합니다.
 """,
     "cli.hook_help": "Claude Code가 JSON stdin으로 자동 호출하는 hook",
     "cli.hook_description": "Claude Code hook용입니다. event와 JSON stdin을 받아 실행하며 "
@@ -111,8 +111,8 @@ KO: dict[str, str] = {
                               "--all 은 열린 task 전체의 그래프와 실패 사유를 보여줍니다. "
                               "task를 시작하거나 완료하지 않습니다.",
     "cli.all_help": "열린 task 전체의 그래프·ready 노드·실패 사유",
-    "cli.no_open": "wf: 열린 task 없음",
-    "cli.other_dirs": "wf: 다른 디렉터리의 열린 task {n}개",
-    "cli.no_other": "wf: 다른 열린 task 없음",
-    "cli.none_here": "wf: 이 디렉터리의 열린 task 없음 · 다른 디렉터리 {n}개",
+    "cli.no_open": "omge:wf: 열린 task 없음",
+    "cli.other_dirs": "omge:wf: 다른 디렉터리의 열린 task {n}개",
+    "cli.no_other": "omge:wf: 다른 열린 task 없음",
+    "cli.none_here": "omge:wf: 이 디렉터리의 열린 task 없음 · 다른 디렉터리 {n}개",
 }

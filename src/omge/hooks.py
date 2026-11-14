@@ -1,4 +1,4 @@
-"""Claude Code hook decisions, registered by the plugin as `wf hook <event>`.
+"""Claude Code hook decisions, registered by the plugin as `omge hook <event>`.
 
 Scope is decided here, per call: the session home is a git checkout. What a
 session answers for is decided by ownership, never by path: a session owns the
@@ -128,7 +128,7 @@ def _name(task: sqlite3.Row) -> str:
 
 def _ready_line(conn: sqlite3.Connection, task: sqlite3.Row) -> str:
     ready = graph.ready(graph.parse(task["graph"]), store.node_rows(conn, task["id"]))
-    return (f"wf #{task['id']} {task['type']} state={task['state']} {_name(task)} ready: "
+    return (f"omge:wf #{task['id']} {task['type']} state={task['state']} {_name(task)} ready: "
             + (", ".join(n["id"] for n in ready) or i18n.t("hooks.none")))
 
 
@@ -167,7 +167,7 @@ def _user_command(conn: sqlite3.Connection, task: sqlite3.Row, verb: str, rest: 
         checks.close(conn, task, node_id, status="waived", done_by="user", evidence=reason.strip(),
                      route=route or None)
     except graph.WfError as exc:
-        return f"wf: {exc}"
+        return f"omge:wf: {exc}"
     return i18n.t("hooks.waived_by_user", node=node_id, reason=reason.strip())
 
 
@@ -179,7 +179,7 @@ def _drop(conn: sqlite3.Connection, rest: str) -> str:
         return i18n.t("hooks.drop_usage")
     store.set_state(conn, task["id"], "dropped")
     store.event(conn, task["id"], "", "drop", m[2].strip())
-    return f"wf #{task['id']}: dropped — {m[2].strip()}"
+    return f"omge:wf #{task['id']}: dropped — {m[2].strip()}"
 
 
 def user_prompt(conn: sqlite3.Connection, session: str, prompt: str, *, human: bool = True) -> str:

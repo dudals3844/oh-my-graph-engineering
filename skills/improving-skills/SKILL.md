@@ -1,6 +1,6 @@
 ---
 name: improving-skills
-description: Use right after a wf retro verdict (or when a loaded skill turned out wrong, the user corrected a procedure, or a reusable technique was worked out) to patch or create skills in ~/.claude/skills from that task's evidence.
+description: Use right after an omge:wf retro verdict (or when a loaded skill turned out wrong, the user corrected a procedure, or a reusable technique was worked out) to patch or create skills in ~/.claude/skills from that task's evidence.
 ---
 
 # Improving skills
@@ -46,7 +46,7 @@ source repository as an issue or PR.
 
 Look at both in one retro, without mixing their roles.
 
-- **The graph (wf library)** owns what is checked and when. Fix repeated failures with a check, order,
+- **The graph (omge:wf library)** owns what is checked and when. Fix repeated failures with a check, order,
   param or earlier node (`wf_retro`).
 - **The skill** owns how. It holds repeated procedures, commands and pitfalls.
 - **Link them.** When a skill is created or changed, name it in the `do` of the node that uses the

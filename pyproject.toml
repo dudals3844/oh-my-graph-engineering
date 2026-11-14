@@ -14,8 +14,8 @@ dependencies = [
 dev = ["pytest", "ruff"]
 
 [project.scripts]
-wf = "omge.cli:main"
-wf-mcp = "omge.server:main"
+omge = "omge.cli:main"
+omge-mcp = "omge.server:main"
 
 [build-system]
 requires = ["hatchling"]

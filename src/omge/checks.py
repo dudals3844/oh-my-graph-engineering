@@ -97,7 +97,7 @@ def run(cmd: str, cwd: str, env: dict[str, str], timeout: float) -> tuple[int, s
             proc.stdout.close()
             proc.wait()
             out = b""
-        code, out = 124, out + f"\n[wf] timeout after {timeout:.0f}s".encode()
+        code, out = 124, out + f"\n[omge:wf] timeout after {timeout:.0f}s".encode()
     return code, out.decode(errors="replace")[-TAIL_CHARS:]
 
 
@@ -402,7 +402,7 @@ def attempt(  # noqa: C901
         try:
             cmd, values = render(node["check"], json.loads(task["params"]), t["params"])
         except graph.WfError as exc:
-            code, tail = 1, f"[wf] {exc}"
+            code, tail = 1, f"[omge:wf] {exc}"
         else:
             env = {**_env(task, node), **values}
             if at:  # GitHub's `created_at` format: a receipt must postdate the call
@@ -416,7 +416,7 @@ def attempt(  # noqa: C901
             close(conn, task, node["id"], status="done", done_by=done_by, evidence=evidence,
                   deadline=deadline, head=head or "")
         except graph.WfError as exc:  # a refused route fails like a check: Stop can stall on it
-            code, tail = 1, f"[wf] {exc}"
+            code, tail = 1, f"[omge:wf] {exc}"
     store.record_attempt(conn, task["id"], node["id"], code, tail)
     if tail != i18n.t("checks.unrun"):
         detail = normalise(first_error_line(tail)) if code else ""

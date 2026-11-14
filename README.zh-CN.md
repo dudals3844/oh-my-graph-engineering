@@ -12,6 +12,12 @@
 
 ![omge demo](docs/demo.gif)
 
+**你只需专注于图工程。** 设计步骤和校验，omge 负责强制执行，具体工作由你已有的智能体和技能（superpowers、ponytail、你自己的）完成。
+
+- 节点可以要求任意已安装的智能体（`agent:`）或技能（`skill:`），omge 会拦住节点直到该调用发生。
+- 无需编写 YAML：用自然语言告诉 `/omge:graph` 节点该用哪个智能体和技能。
+- 详见 [与已安装的插件协同工作](docs/compatibility.zh-CN.md)。
+
 > 运行时消息为英文（默认）或韩文，通过 `OMGE_LANG` 切换。
 
 ## 为什么
@@ -53,7 +59,7 @@ claude plugin install omge@oh-my-graph-engineering
 ```
 
 然后在 Claude Code 中运行 `/omge:setup`。它会检查是否已安装 [uv](https://pypi.org/project/uv/)
-（钩子和 `wf` MCP 服务器都通过 uv 运行），并提供安装可选的 ponytail 插件。
+（钩子和 `omge:wf` MCP 服务器都通过 uv 运行），并提供安装可选的 ponytail 插件。
 
 首次使用时，uv 会按已提交的 `uv.lock` 从 PyPI 获取 omge 的 Python 依赖。
 如果没有安装 Python 3.12 或更高版本，uv 还会下载一个。
@@ -62,7 +68,7 @@ claude plugin install omge@oh-my-graph-engineering
 
 > [!WARNING]
 > **重复的钩子：** 插件会注册自己的 SessionStart、UserPromptSubmit、Stop、PreToolUse 和 PostToolUse 钩子。
-> 如果你还在 `settings.json` 中配置了 `wf hook ...` 命令，请删除它们，否则每个钩子都会运行两次。
+> 如果你还在 `settings.json` 中配置了 `omge hook ...` 命令，请删除它们，否则每个钩子都会运行两次。
 
 ## 图示例
 

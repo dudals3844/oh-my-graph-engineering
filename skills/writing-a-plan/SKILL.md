@@ -10,7 +10,7 @@ Answer in the user's language.
 
 **Never:** use the built-in Plan Mode (EnterPlanMode/ExitPlanMode) or `--interactive`, or stop to ask the
 user to review the plan or pick an execution mode. If the scope is already approved, finish the plan and go
-straight to the next wf node. Keep every approval boundary the user's instructions set (deploys, merges,
+straight to the next omge:wf node. Keep every approval boundary the user's instructions set (deploys, merges,
 anything irreversible).
 
 ## 0. Is a plan needed

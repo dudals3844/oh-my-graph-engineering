@@ -41,7 +41,8 @@ wait_for() {  # wait_for <regex> <seconds>
   echo "timed out waiting for: $1" >&2; pane >&2; exit 1
 }
 say() { tmux -L omge-demo send-keys -t omge-demo -l "$1"; sleep 1; tmux -L omge-demo send-keys -t omge-demo Enter; }
-plan_done() { python3 -c 'import sqlite3, sys; sys.exit(sqlite3.connect(sys.argv[1]).execute("SELECT 1 FROM node_state WHERE node = '"'plan'"' AND status = '"'done'"'").fetchone() is None)' "$work/home/.local/share/omge/wf.db" 2>/dev/null; }
+# The plugin's own interpreter: a different SQLite build reading the WAL DB breaks its writers (disk I/O error).
+plan_done() { uv run --locked --quiet --project "$work/omge" python -c 'import sqlite3, sys; sys.exit(sqlite3.connect(sys.argv[1]).execute("SELECT 1 FROM node_state WHERE node = '"'plan'"' AND status = '"'done'"'").fetchone() is None)' "$work/home/.local/share/omge/wf.db" 2>/dev/null; }
 
 wait_for 'for shortcuts|bypass permissions' 60; sleep 2
 say 'Start the omge code-implementation workflow here for: add a --shout flag to greet.py, and show me the graph. Then end your turn at once. When the stop hook blocks you, do only the plan node (a two-line plan) and stop.'
@@ -53,16 +54,16 @@ tmux -L omge-demo send-keys -t omge-demo C-c; sleep 1; tmux -L omge-demo send-ke
 for ((i = 0; i < 30; i++)); do tmux -L omge-demo has-session -t omge-demo 2>/dev/null || break; sleep 1; done
 
 # Blank the account usage notice, and end on "The plan node has passed": cut where the hook
-# blocks a second time (streak 2/), which only leads on to the stall.
+# blocks a second time (streak 2/, or on `implement` once plan passed), which only leads on to the stall.
 python3 -I - "$cast" "$work/trim.cast" <<'PY'
 import json, re, sys
 src, dst = open(sys.argv[1]), open(sys.argv[2], "w")
 dst.write(src.readline())
 for line in src:
     t, kind, data = json.loads(line)
-    if re.search(r"streak\s+2/", re.sub(r"\x1b\[[0-9;?]*[A-Za-z]", " ", data)):
+    if re.search(r"streak\s+2/|`implement`\s+exit=", re.sub(r"\x1b\[[0-9;?]*[A-Za-z]", " ", data)):
         break
     data = re.sub(r"You've used \d+% of your weekly limit[^\x1b]*", lambda m: " " * len(m.group()), data)
     dst.write(json.dumps([t, kind, data]) + "\n")
 PY
-"${AGG:-agg}" --font-size 16 --idle-time-limit 2 --last-frame-duration 0.5 "$work/trim.cast" "$repo/docs/demo.gif"
+"${AGG:-agg}" --font-size 16 --idle-time-limit 2 --speed 1.5 --last-frame-duration 0.5 "$work/trim.cast" "$repo/docs/demo.gif"

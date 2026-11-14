@@ -1,4 +1,4 @@
-"""`wf hook <event>` (what the plugin hooks run) and `wf status` (every open task)."""
+"""`omge hook <event>` (what the plugin hooks run) and `omge status` (every open task)."""
 
 from __future__ import annotations
 
@@ -30,7 +30,7 @@ def _in_task(cwd: Path, task_dir: Path) -> bool:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
-        prog="wf", formatter_class=argparse.RawDescriptionHelpFormatter,
+        prog="omge", formatter_class=argparse.RawDescriptionHelpFormatter,
         description=t("cli.description"), epilog=t("cli.epilog"))
     sub = parser.add_subparsers(dest="command", required=True)
     hook = sub.add_parser(

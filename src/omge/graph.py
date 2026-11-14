@@ -108,7 +108,7 @@ def parse(body: str, strict: bool = False) -> dict:  # noqa: C901
             raise WfError(f"node {nid}: `after` names no earlier node {missing}")
         if nid == "retro":
             if "check" in node:
-                raise WfError("`retro` takes no check in the graph; wf supplies it")
+                raise WfError("`retro` takes no check in the graph; omge:wf supplies it")
             node["check"] = RETRO_CHECK
             if node.get("auto_after") not in (True, "auto", "pinned"):
                 node.pop("auto_after", None)

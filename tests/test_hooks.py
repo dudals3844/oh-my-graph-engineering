@@ -568,7 +568,7 @@ def test_pre_tool_use(workflows, repo):
 
     # A typed `wf` command is not a shell command.
     assert deny("Bash", command="cd x && wf waive a because") is None
-    assert deny("Bash", command="wf status") is None
+    assert deny("Bash", command="omge status") is None
     assert "wf_start" in deny("Write", file_path=f"{repo}/a.py")
     assert "wf_start" in deny("Bash", command="git -C . commit -m x")
     assert "wf_start" in deny("Bash", command="gh pr create --fill")

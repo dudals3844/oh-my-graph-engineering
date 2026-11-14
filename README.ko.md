@@ -12,6 +12,12 @@
 
 ![omge demo](docs/demo.gif)
 
+**사용자는 그래프 엔지니어링만 하면 됩니다.** 단계와 검증을 설계하면 omge가 그것을 강제하고, 일은 이미 가진 에이전트와 스킬(superpowers, ponytail, 직접 만든 것)이 합니다.
+
+- 노드는 설치된 어떤 에이전트(`agent:`)나 스킬(`skill:`)이든 요구할 수 있고, omge는 그 호출이 일어날 때까지 노드를 막습니다.
+- YAML을 쓸 필요가 없습니다. `/omge:graph`에 노드가 쓸 에이전트와 스킬을 평범한 말로 알려 주세요.
+- 자세히: [설치한 플러그인과 함께 동작](docs/compatibility.ko.md).
+
 > 런타임 메시지는 영어(기본) 또는 한국어로 출력됩니다. 한국어로 보려면 `OMGE_LANG=ko`를 설정하세요.
 
 ## 왜 필요한가
@@ -54,7 +60,7 @@ claude plugin install omge@oh-my-graph-engineering
 ```
 
 그다음 Claude Code에서 `/omge:setup`을 실행하세요. [uv](https://pypi.org/project/uv/) 설치 여부를 확인하고
-(훅과 `wf` MCP 서버가 uv로 실행됩니다), 선택 사항인 ponytail 플러그인 설치를 제안합니다.
+(훅과 `omge:wf` MCP 서버가 uv로 실행됩니다), 선택 사항인 ponytail 플러그인 설치를 제안합니다.
 
 처음 사용할 때 uv가 커밋된 `uv.lock`에 고정된 omge의 Python 의존성을 PyPI에서 받아옵니다.
 Python 3.12 이상이 설치되어 있지 않으면 uv가 그것도 내려받습니다.
@@ -63,7 +69,7 @@ Python 3.12 이상이 설치되어 있지 않으면 uv가 그것도 내려받습
 
 > [!WARNING]
 > **중복 훅:** 플러그인은 자체 SessionStart, UserPromptSubmit, Stop, PreToolUse, PostToolUse 훅을 등록합니다.
-> `settings.json`에 `wf hook ...` 명령도 연결해 두었다면 제거하세요. 그렇지 않으면 모든 훅이 두 번 실행됩니다.
+> `settings.json`에 `omge hook ...` 명령도 연결해 두었다면 제거하세요. 그렇지 않으면 모든 훅이 두 번 실행됩니다.
 
 ## 그래프 예시
 

@@ -1,10 +1,10 @@
 """checks messages."""
 
 EN: dict[str, str] = {
-    "checks.unrun": "[wf] check budget exhausted — not run",
+    "checks.unrun": "[omge:wf] check budget exhausted — not run",
     "checks.param_unset": "param `{name}` is unset — set it first with wf_set",
     "checks.param_mismatch": "param `{name}`={value} does not match {pattern}",
-    "checks.no_dir": "[wf] no dir: {cwd} — if the user moved it, wf_set(issue_url, 'dir', <path>)",
+    "checks.no_dir": "[omge:wf] no dir: {cwd} — if the user moved it, wf_set(issue_url, 'dir', <path>)",
     "checks.review_blocking": ("the reviewer's latest verdict is blocking — fix those findings"
                                " and get reviewed again, or `wf_drop`"),
     "checks.no_when": "`{node}`: no `next` when matches — completion refused, staying on the node",
@@ -32,17 +32,17 @@ EN: dict[str, str] = {
                               " task #{tid} was recorded as stalled. Notify the user with"
                               " PushNotification and stop."),
     "checks.fail_back": "`{node}` failed → redo from `{to}` ({count}/{limit})",
-    "checks.no_retro": ("[wf] no wf_retro record — call wf_retro first"
+    "checks.no_retro": ("[omge:wf] no wf_retro record — call wf_retro first"
                         " (if there is nothing to improve, wf_retro(verdict=\"skip\", reason=...))"),
-    "checks.silent_human": ("[wf] the check failed with no output (exit={code}) — this node waits"
+    "checks.silent_human": ("[omge:wf] the check failed with no output (exit={code}) — this node waits"
                             " on a human decision (a merge, etc.). Do not repeat wf_complete;"
                             " ask the user and wait"),
-    "checks.silent": "[wf] the check failed with no output (exit={code}) — re-read this node's `do`",
+    "checks.silent": "[omge:wf] the check failed with no output (exit={code}) — re-read this node's `do`",
     "checks.carried": "code unchanged — pass carried over from {sha}",
-    "checks.no_skill": ("[wf] no record of a call to skill `{skills}` — if you only applied its"
+    "checks.no_skill": ("[omge:wf] no record of a call to skill `{skills}` — if you only applied its"
                         " criteria, report that; this node requires the skill to run and does"
                         " not close unless `wf_waive`d"),
-    "checks.no_agent": ("[wf] no record of a call to agent `{agents}` — this node must be handed"
+    "checks.no_agent": ("[omge:wf] no record of a call to agent `{agents}` — this node must be handed"
                         " to that subagent with the Agent tool, and does not close unless"
                         " `wf_waive`d"),
     "checks.no_check": "`{node}` has no check — leave what you did as evidence",
@@ -50,10 +50,10 @@ EN: dict[str, str] = {
 }
 
 KO: dict[str, str] = {
-    "checks.unrun": "[wf] 검사 예산 소진 — 미실행",
+    "checks.unrun": "[omge:wf] 검사 예산 소진 — 미실행",
     "checks.param_unset": "param `{name}` 미설정 — wf_set 으로 먼저 설정하라",
     "checks.param_mismatch": "param `{name}`={value} 가 {pattern} 에 맞지 않는다",
-    "checks.no_dir": "[wf] dir 없음: {cwd} — 사용자가 옮겼다면 wf_set(issue_url, 'dir', <경로>)",
+    "checks.no_dir": "[omge:wf] dir 없음: {cwd} — 사용자가 옮겼다면 wf_set(issue_url, 'dir', <경로>)",
     "checks.review_blocking": "리뷰어의 최신 판정이 blocking 이다 — 그 지적을 고치고 다시 리뷰받거나 `wf_drop`",
     "checks.no_when": "`{node}`: 어느 `next` 의 when 도 맞지 않는다 — 완료 거부, 노드에 머문다",
     "checks.branch_route": ("`{node}` 는 갈래 노드다 — 갈 곳을 정해 면제하라:"
@@ -76,15 +76,15 @@ KO: dict[str, str] = {
                               " task #{tid} 를 stalled 로 기록했다. PushNotification 으로 사용자에게"
                               " 알리고 종료하라."),
     "checks.fail_back": "`{node}` 실패 → `{to}` 부터 다시 ({count}/{limit}회)",
-    "checks.no_retro": ("[wf] wf_retro 기록이 없다 — wf_retro 를 먼저 호출하라"
+    "checks.no_retro": ("[omge:wf] wf_retro 기록이 없다 — wf_retro 를 먼저 호출하라"
                         " (개선할 것이 없으면 wf_retro(verdict=\"skip\", reason=...))"),
-    "checks.silent_human": ("[wf] check 가 출력 없이 실패했다 (exit={code}) — 이 노드는 사람의 결정(머지 등)을"
+    "checks.silent_human": ("[omge:wf] check 가 출력 없이 실패했다 (exit={code}) — 이 노드는 사람의 결정(머지 등)을"
                             " 기다린다. wf_complete 를 반복하지 말고 사용자에게 묻고 기다려라"),
-    "checks.silent": "[wf] check 가 출력 없이 실패했다 (exit={code}) — 이 노드의 `do` 를 다시 읽어라",
+    "checks.silent": "[omge:wf] check 가 출력 없이 실패했다 (exit={code}) — 이 노드의 `do` 를 다시 읽어라",
     "checks.carried": "코드 동일 — {sha} 통과 이월",
-    "checks.no_skill": ("[wf] 스킬 `{skills}` 호출 기록이 없다 — 기준만 적용했으면 그렇게 보고하고,"
+    "checks.no_skill": ("[omge:wf] 스킬 `{skills}` 호출 기록이 없다 — 기준만 적용했으면 그렇게 보고하고,"
                         " 스킬 실행이 필수인 노드라 `wf_waive` 하지 않는 한 닫히지 않는다"),
-    "checks.no_agent": ("[wf] 에이전트 `{agents}` 호출 기록이 없다 — 이 노드는 Agent 도구로 그 subagent"
+    "checks.no_agent": ("[omge:wf] 에이전트 `{agents}` 호출 기록이 없다 — 이 노드는 Agent 도구로 그 subagent"
                         " 에게 맡겨야 하고, `wf_waive` 하지 않는 한 닫히지 않는다"),
     "checks.no_check": "`{node}` 는 check 가 없다 — 무엇을 했는지 evidence 로 남겨라",
     "checks.check_failed": "`{node}` check 실패 exit={code}:\n{tail}",

@@ -12,6 +12,12 @@
 
 ![omge demo](docs/demo.gif)
 
+**Tú solo haces la ingeniería del grafo.** Diseña los pasos y los checks; omge los hace cumplir; tus agentes y skills de siempre (superpowers, ponytail, los tuyos) hacen el trabajo.
+
+- Un nodo puede exigir cualquier agente (`agent:`) o skill (`skill:`) instalado; omge lo retiene hasta que esa llamada ocurra.
+- Sin escribir YAML: dile a `/omge:graph` con palabras normales qué agente y skill debe usar un nodo.
+- Más: [Funciona con tus plugins](docs/compatibility.es.md).
+
 > Los mensajes en tiempo de ejecución están en inglés (por defecto) o en coreano, según `OMGE_LANG`.
 
 ## Por qué
@@ -54,7 +60,7 @@ claude plugin install omge@oh-my-graph-engineering
 ```
 
 Después ejecuta `/omge:setup` en Claude Code. Comprueba que [uv](https://pypi.org/project/uv/) está instalado
-(los hooks y el servidor MCP `wf` se ejecutan con él) y ofrece instalar el plugin opcional ponytail.
+(los hooks y el servidor MCP `omge:wf` se ejecutan con él) y ofrece instalar el plugin opcional ponytail.
 
 En el primer uso, uv resuelve las dependencias de Python de omge desde PyPI, fijadas por el `uv.lock`
 incluido en el repositorio. Si no hay un Python 3.12 o posterior instalado, uv también descarga uno. No se
@@ -63,7 +69,7 @@ Reanudar una tarea existente (SessionStart) puede volver a ejecutar automáticam
 
 > [!WARNING]
 > **Hooks duplicados:** el plugin registra sus propios hooks SessionStart, UserPromptSubmit, Stop, PreToolUse y
-> PostToolUse. Si también configuraste comandos `wf hook ...` en un `settings.json`, elimínalos, o cada hook se
+> PostToolUse. Si también configuraste comandos `omge hook ...` en un `settings.json`, elimínalos, o cada hook se
 > ejecutará dos veces.
 
 ## Un grafo

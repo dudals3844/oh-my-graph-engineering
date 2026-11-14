@@ -1,4 +1,4 @@
-"""`wf-mcp`: the agent-facing MCP surface over `graph`/`checks`. Deliberately thin.
+"""`omge-mcp`: the agent-facing MCP surface over `graph`/`checks`. Deliberately thin.
 
 The only module here on mcp 2.x; everything it calls is stdlib + pyyaml so the
 hooks never pay for `mcp` on a tool call. Registered user-scope, stdio.
@@ -278,7 +278,7 @@ def wf_drop(task: int, reason: str) -> str:
         raise graph_.WfError(i18n.t("server.not_open", task=task))
     store.set_state(conn, row["id"], "dropped")
     store.event(conn, row["id"], "", "drop", reason.strip())
-    return f"wf #{row['id']}: dropped — {reason.strip()}"
+    return f"omge:wf #{row['id']}: dropped — {reason.strip()}"
 
 
 @_tool

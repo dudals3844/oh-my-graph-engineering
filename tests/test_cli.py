@@ -1,4 +1,4 @@
-"""`wf hook <event>` and `wf status` — the entry the settings.json hooks run."""
+"""`omge hook <event>` and `omge status` — the entry the settings.json hooks run."""
 
 from __future__ import annotations
 
@@ -65,7 +65,7 @@ def test_status(workflows, repo, capsys, monkeypatch):
 
 
 @pytest.mark.parametrize("argv, fragments", [
-    (["--help"], ("wf status", "wf-mcp", "wf_start", "wf_complete", "wf_fail", "wf_retro",
+    (["--help"], ("omge status", "omge-mcp", "wf_start", "wf_complete", "wf_fail", "wf_retro",
                   "Skill tool", "HEAD", "Plan Mode", "first line", "7/40 chars", "PLAN done")),
     (["status", "--help"], ("current directory", "--all", "never starts or completes")),
     (["hook", "--help"], ("JSON stdin", "starting work", "post-tool-use")),
@@ -77,4 +77,4 @@ def test_help_explains_usage_without_opening_db(argv, fragments, monkeypatch, ca
     assert exc.value.code == 0
     out = capsys.readouterr().out
     assert all(fragment in out for fragment in fragments)
-    assert "wf start" not in out and "wf complete" not in out
+    assert "omge start" not in out and "omge complete" not in out

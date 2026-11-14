@@ -6,7 +6,7 @@ EN: dict[str, str] = {
                            " back in.",
     "server.one_of": "give exactly one of issue_url and task (id)",
     "server.no_open_task": "no open task — wf_start first",
-    "server.closed": "task #{id} is already closed as {state} — wf tools handle only open tasks"
+    "server.closed": "task #{id} is already closed as {state} — omge:wf tools handle only open tasks"
                      " and never reopen a closed task or record its retro. retro: {retro}",
     "server.no_node": "no node",
     "server.coverage": "Request check: before the first node, compare the steps the user asked"
@@ -49,7 +49,7 @@ EN: dict[str, str] = {
                           " — call wf_waive after that Agent call",
     "server.drop_reason": "wf_drop needs a reason",
     "server.not_open": "#{task} is not an open task",
-    "server.paused": "wf #{id}: paused — the next ordinary prompt makes it active again.",
+    "server.paused": "omge:wf #{id}: paused — the next ordinary prompt makes it active again.",
 }
 
 KO: dict[str, str] = {
@@ -57,7 +57,7 @@ KO: dict[str, str] = {
                            "(절차 교정·재사용 기법)를 반영한다.",
     "server.one_of": "issue_url 과 task(id) 중 하나만 준다",
     "server.no_open_task": "열린 task 가 없다 — wf_start 먼저",
-    "server.closed": "task #{id} 는 이미 {state} 로 닫혔다 — wf 도구는 열린 task 만"
+    "server.closed": "task #{id} 는 이미 {state} 로 닫혔다 — omge:wf 도구는 열린 task 만"
                      " 다루며 닫힌 task 를 다시 열거나 retro 를 기록하지 않는다. retro: {retro}",
     "server.no_node": "노드 없음",
     "server.coverage": "요청 대조: 첫 노드 전에 사용자가 요청한 단계(배포·runtime/e2e 테스트 등)를 이"
@@ -98,5 +98,5 @@ KO: dict[str, str] = {
                           " — 그 Agent 호출 뒤에 wf_waive",
     "server.drop_reason": "wf_drop 에는 reason 이 필요하다",
     "server.not_open": "#{task} 는 열린 task 가 아니다",
-    "server.paused": "wf #{id}: paused — 다음 일반 프롬프트에서 active 로 돌아온다.",
+    "server.paused": "omge:wf #{id}: paused — 다음 일반 프롬프트에서 active 로 돌아온다.",
 }

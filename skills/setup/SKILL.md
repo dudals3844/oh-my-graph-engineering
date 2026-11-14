@@ -33,6 +33,6 @@ Use AskUserQuestion with one question: install the ponytail plugin? Explain in o
 ## 3. Duplicate hooks
 
 Tell the user: the omge plugin registers its own hooks (SessionStart, UserPromptSubmit, Stop,
-PreToolUse, PostToolUse). If they previously wired `wf hook ...` commands into their own `settings.json`
+PreToolUse, PostToolUse). If they previously wired `omge hook ...` commands into their own `settings.json`
 (`~/.claude/settings.json` or a project's `.claude/settings.json`), they should remove those entries, or
 every hook runs twice. Do not edit their settings yourself unless they ask.

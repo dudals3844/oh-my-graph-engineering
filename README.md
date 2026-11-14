@@ -12,6 +12,12 @@
 
 ![omge demo](docs/demo.gif)
 
+**You only do the graph engineering.** Design the steps and the checks; omge enforces them; your existing agents and skills (superpowers, ponytail, your own) do the work.
+
+- A node can require any installed agent (`agent:`) or skill (`skill:`); omge holds it until that call happens.
+- No YAML needed: tell `/omge:graph` in plain words which agent and skill a node should use.
+- More: [Works with your plugins](docs/compatibility.md).
+
 ## Why
 
 Long tasks drift: a test step gets skipped, a review is "done" without a reviewer, the session stops
@@ -52,7 +58,7 @@ claude plugin install omge@oh-my-graph-engineering
 ```
 
 Then run `/omge:setup` in Claude Code. It checks that [uv](https://pypi.org/project/uv/) is installed (the
-hooks and the `wf` MCP server run through it) and offers to install the optional ponytail plugin.
+hooks and the `omge:wf` MCP server run through it) and offers to install the optional ponytail plugin.
 
 On first use, uv resolves omge's Python dependencies from PyPI, pinned by the committed `uv.lock`.
 If no Python 3.12 or newer is installed, uv also downloads one. Nothing else is downloaded, and omge
@@ -61,7 +67,7 @@ Resuming an existing task (SessionStart) can automatically re-run that task's hu
 
 > [!WARNING]
 > **Duplicate hooks:** the plugin registers its own SessionStart, UserPromptSubmit, Stop, PreToolUse and
-> PostToolUse hooks. If you also wired `wf hook ...` commands into a `settings.json`, remove them, or
+> PostToolUse hooks. If you also wired `omge hook ...` commands into a `settings.json`, remove them, or
 > every hook runs twice.
 
 ## A graph

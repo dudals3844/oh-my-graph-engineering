@@ -12,6 +12,12 @@
 
 ![omge demo](docs/demo.gif)
 
+**あなたはグラフエンジニアリングだけに集中できます。** ステップとチェックを設計すれば omge がそれを強制し、作業はすでに持っているエージェントとスキル（superpowers、ponytail、自作のもの）が行います。
+
+- ノードはインストール済みの任意のエージェント（`agent:`）やスキル（`skill:`）を要求でき、omge はその呼び出しが行われるまでノードを止めます。
+- YAML は不要です。ノードで使うエージェントとスキルを `/omge:graph` に普通の言葉で伝えてください。
+- 詳しくは [手持ちのプラグインと連携](docs/compatibility.ja.md)。
+
 > 実行時のメッセージは英語（デフォルト）または韓国語です。`OMGE_LANG` で切り替えます。
 
 ## なぜ必要か
@@ -54,7 +60,7 @@ claude plugin install omge@oh-my-graph-engineering
 ```
 
 次に Claude Code で `/omge:setup` を実行します。[uv](https://pypi.org/project/uv/) がインストールされているかを確認し
-（フックと `wf` MCP サーバーは uv 経由で動きます）、オプションの ponytail プラグインのインストールを提案します。
+（フックと `omge:wf` MCP サーバーは uv 経由で動きます）、オプションの ponytail プラグインのインストールを提案します。
 
 初回の使用時に、uv がコミット済みの `uv.lock` に固定された omge の Python 依存関係を PyPI から取得します。
 Python 3.12 以降がインストールされていない場合は、uv がそれもダウンロードします。
@@ -63,7 +69,7 @@ Python 3.12 以降がインストールされていない場合は、uv がそ�
 
 > [!WARNING]
 > **フックの重複:** このプラグインは独自の SessionStart、UserPromptSubmit、Stop、PreToolUse、PostToolUse フックを登録します。
-> `settings.json` にも `wf hook ...` コマンドを設定している場合は削除してください。そうしないとすべてのフックが二重に実行されます。
+> `settings.json` にも `omge hook ...` コマンドを設定している場合は削除してください。そうしないとすべてのフックが二重に実行されます。
 
 ## グラフの例
 

@@ -1,6 +1,6 @@
 ---
 name: graph
-description: Use when the user runs /omge:graph or asks how to design, write or change an omge workflow graph (a wf type, a one-off graph for wf_start type="new", or a library type changed through wf_retro).
+description: Use when the user runs /omge:graph or asks how to design, write or change an omge workflow graph (an omge:wf type, a one-off graph for wf_start type="new", or a library type changed through wf_retro).
 ---
 
 # Designing an omge graph
@@ -39,7 +39,7 @@ nodes:
 ```
 
 A `retro` node is required and must be last (only `kind: human` nodes may follow it); it takes no
-`check` — wf supplies it. In a graph given to wf_start it is appended for you.
+`check` — omge:wf supplies it. In a graph given to wf_start it is appended for you.
 
 ## Node fields
 
