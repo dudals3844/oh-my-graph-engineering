@@ -103,6 +103,9 @@ Resuming an existing task (SessionStart) can automatically re-run that task's hu
 > **Duplicate hooks:** the plugin registers its own SessionStart, UserPromptSubmit, Stop, PreToolUse and
 > PostToolUse hooks. If you also wired `omge hook ...` commands into a `settings.json`, remove them, or
 > every hook runs twice.
+>
+> **If omge cannot start** (uv or Python fails), PreToolUse lets the tool call through, since blocking would
+> deny every tool call in every session, task or not; Stop still blocks, so no task finishes past a broken hook.
 
 ## A graph
 

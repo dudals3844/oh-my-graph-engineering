@@ -594,12 +594,18 @@ def test_main_exit_codes(workflows, repo, capsys, monkeypatch):
     # Undecidable scope fails open, even for Stop.
     assert hooks.main("stop", "not json") == 0
     assert hooks.main("pre-tool-use", "not json") == 0
-    # In scope, Stop fails closed and everything else fails open.
+    # In scope, Stop and PreToolUse fail closed and everything else fails open.
     monkeypatch.setattr(store, "connect", lambda: 1 / 0)
     payload = json.dumps({"cwd": repo, "session_id": "s1"})
+    capsys.readouterr()
     assert hooks.main("stop", payload) == 2
-    for event in ("pre-tool-use", "post-tool-use", "user-prompt-submit", "session-start"):
+    assert hooks.main("pre-tool-use", payload) == 0
+    out = json.loads(capsys.readouterr().out)["hookSpecificOutput"]
+    assert out["permissionDecision"] == "deny"
+    assert "ZeroDivisionError" in out["permissionDecisionReason"]
+    for event in ("post-tool-use", "user-prompt-submit", "session-start"):
         assert hooks.main(event, payload) == 0
+    assert capsys.readouterr().out == ""
 
 
 def test_project_dir_wins_over_cwd(workflows, repo, tmp_path, monkeypatch):

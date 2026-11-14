@@ -11,9 +11,18 @@ set -euo pipefail
 mode=${1:-demo}
 repo=$(cd "$(dirname "$0")/../.." && pwd)
 work=$(mktemp -d /tmp/omge-demo.XXXX)
-# kill-session does not end asciinema's child tree (claude, its MCP servers), which keeps recreating
-# $work; SIGKILL every process whose argv names $work, so none writes its exit state after the rm.
-trap 'tmux -L omge-demo kill-session -t omge-demo 2>/dev/null || true; pkill -KILL -f -- "$work" || true; rm -rf "$work"' EXIT
+sock=$(basename "$work")  # a tmux server per take, so concurrent takes never touch each other
+# kill-server does not end asciinema's child tree (claude, its MCP servers), which keeps recreating
+# $work. Every process of this take, reparented or not, inherits OMGE_DEMO_TAKE=$work from the env -i
+# below: SIGKILL those (an exact environ entry, not an argv regex) until none is left, then rm.
+cleanup() {
+  tmux -L "$sock" kill-server 2>/dev/null || true
+  while pids=$(grep -lzxF "OMGE_DEMO_TAKE=$work" /proc/[0-9]*/environ 2>/dev/null | cut -d/ -f3); [ -n "$pids" ]; do
+    kill -KILL $pids 2>/dev/null || true
+  done
+  rm -rf "$work"
+}
+trap cleanup EXIT
 mkdir -p "$work/home/.claude" "$work/greeter" "$work/omge"
 # A copy, so the hook commands Claude Code echoes show no path of the real checkout.
 tar -C "$repo" --exclude=.venv --exclude=.git -cf - . | tar -C "$work/omge" -xf -
@@ -42,21 +51,20 @@ else
   node=plan cut='streak\s+2/|`implement`\s+exit=' gif=demo.gif
   prompt='Start the omge code-implementation workflow here for: add a --shout flag to greet.py, and show me the graph. Then end your turn at once. When the stop hook blocks you, do only the plan node (a two-line plan) and stop.'
 fi
-tmux -L omge-demo kill-session -t omge-demo 2>/dev/null || true
 env -i PATH="$(dirname "$(command -v uv)"):$(dirname "$(command -v claude)"):/usr/bin:/bin" \
-  HOME="$work/home" CLAUDE_CONFIG_DIR="$work/home/.claude" TERM=xterm-256color LANG=C.UTF-8 PS1='$ ' DISABLE_AUTOUPDATER=1 \
+  OMGE_DEMO_TAKE="$work" HOME="$work/home" CLAUDE_CONFIG_DIR="$work/home/.claude" TERM=xterm-256color LANG=C.UTF-8 PS1='$ ' DISABLE_AUTOUPDATER=1 \
   UV_CACHE_DIR="$(uv cache dir)" ${ANTHROPIC_BASE_URL:+ANTHROPIC_BASE_URL="$ANTHROPIC_BASE_URL"} \
   ${CLAUDE_CODE_OAUTH_TOKEN:+CLAUDE_CODE_OAUTH_TOKEN="$CLAUDE_CODE_OAUTH_TOKEN"} \
   ${ANTHROPIC_API_KEY:+ANTHROPIC_API_KEY="$ANTHROPIC_API_KEY"} \
-  tmux -L omge-demo new-session -d -s omge-demo -x 110 -y 32 \
+  tmux -L "$sock" new-session -d -s omge-demo -x 110 -y 32 \
   "${ASCIINEMA:-asciinema} rec -q --overwrite -i 2 -c '$claude_cmd' $cast"
 
-pane() { tmux -L omge-demo capture-pane -p -t omge-demo; }
+pane() { tmux -L "$sock" capture-pane -p -t omge-demo; }
 wait_for() {  # wait_for <regex> <seconds>
   for ((i = 0; i < $2; i++)); do pane | grep -qE "$1" && return 0; sleep 1; done
   echo "timed out waiting for: $1" >&2; pane >&2; exit 1
 }
-say() { tmux -L omge-demo send-keys -t omge-demo -l "$1"; sleep 1; tmux -L omge-demo send-keys -t omge-demo Enter; }
+say() { tmux -L "$sock" send-keys -t omge-demo -l "$1"; sleep 1; tmux -L "$sock" send-keys -t omge-demo Enter; }
 # The plugin's own interpreter: a different SQLite build reading the WAL DB breaks its writers (disk I/O error).
 node_done() { uv run --locked --quiet --project "$work/omge" python -c 'import sqlite3, sys; sys.exit(sqlite3.connect(sys.argv[1]).execute("SELECT 1 FROM node_state WHERE node = ? AND status = '"'done'"'", (sys.argv[2],)).fetchone() is None)' "$work/home/.local/share/omge/wf.db" "$node" 2>/dev/null; }
 
@@ -65,9 +73,9 @@ say "$prompt"
 for ((i = 0; i < 300; i++)); do node_done && break; sleep 1; done
 node_done || { echo "$node never passed" >&2; pane >&2; exit 1; }
 sleep 8
-tmux -L omge-demo send-keys -t omge-demo Escape; sleep 2
-tmux -L omge-demo send-keys -t omge-demo C-c; sleep 1; tmux -L omge-demo send-keys -t omge-demo C-c
-for ((i = 0; i < 30; i++)); do tmux -L omge-demo has-session -t omge-demo 2>/dev/null || break; sleep 1; done
+tmux -L "$sock" send-keys -t omge-demo Escape; sleep 2
+tmux -L "$sock" send-keys -t omge-demo C-c; sleep 1; tmux -L "$sock" send-keys -t omge-demo C-c
+for ((i = 0; i < 30; i++)); do tmux -L "$sock" has-session -t omge-demo 2>/dev/null || break; sleep 1; done
 
 # Blank the account usage notice, and end once $node passed: cut where the hook blocks on what follows
 # (demo: streak 2/, or `implement`; compat: `retro`), which only leads on to the stall.

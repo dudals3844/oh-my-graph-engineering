@@ -105,6 +105,10 @@ Reanudar una tarea existente (SessionStart) puede volver a ejecutar automáticam
 > **Hooks duplicados:** el plugin registra sus propios hooks SessionStart, UserPromptSubmit, Stop, PreToolUse y
 > PostToolUse. Si también configuraste comandos `omge hook ...` en un `settings.json`, elimínalos, o cada hook se
 > ejecutará dos veces.
+>
+> **Si omge no puede arrancar** (falla uv o Python), PreToolUse deja pasar la llamada a la herramienta, porque
+> bloquearla denegaría todas las llamadas de toda sesión, con o sin tarea; Stop sigue bloqueando, así que ninguna
+> tarea termina con un hook roto.
 
 ## Un grafo
 

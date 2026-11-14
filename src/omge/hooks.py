@@ -6,7 +6,8 @@ tasks it named (`issue_url` or `task` id) to a `wf_*` tool, and the issueless
 task its `wf_start` created.
 
 Failure policy is asymmetric on purpose. Stop is the last line of defence and
-fails CLOSED (any exception → exit 2). Every other event fails OPEN: a broken wf
+fails CLOSED (any exception → exit 2). PreToolUse denies on an exception once
+scope is known; before that, and every other event, fails OPEN: a broken wf
 must not stop every tool call in every session. The static matching in
 PreToolUse is bypassable by design — Stop re-running the checks is what
 actually enforces.
@@ -935,5 +936,8 @@ def main(event: str, stdin: str) -> int:  # noqa: C901
             print(text)
         return 0
     except Exception as exc:  # the failure policy below IS the handling
-        print(i18n.t("hooks.hook_error", event=event, exc=repr(exc)), file=sys.stderr)
+        error = i18n.t("hooks.hook_error", event=event, exc=repr(exc))
+        print(error, file=sys.stderr)
+        if event == "pre-tool-use":
+            return _block(event, error)
         return 2 if event == "stop" else 0

@@ -103,6 +103,9 @@ claude "/omge:setup"
 > [!WARNING]
 > **重复的钩子：** 插件会注册自己的 SessionStart、UserPromptSubmit、Stop、PreToolUse 和 PostToolUse 钩子。
 > 如果你还在 `settings.json` 中配置了 `omge hook ...` 命令，请删除它们，否则每个钩子都会运行两次。
+>
+> **如果 omge 无法启动**（uv 或 Python 失败），PreToolUse 会放行工具调用，因为阻止会拒绝所有会话（无论有无任务）的每次工具调用；
+> Stop 仍会阻止，因此任务不会在钩子损坏时结束。
 
 ## 图示例
 

@@ -104,6 +104,9 @@ Python 3.12 이상이 설치되어 있지 않으면 uv가 그것도 내려받습
 > [!WARNING]
 > **중복 훅:** 플러그인은 자체 SessionStart, UserPromptSubmit, Stop, PreToolUse, PostToolUse 훅을 등록합니다.
 > `settings.json`에 `omge hook ...` 명령도 연결해 두었다면 제거하세요. 그렇지 않으면 모든 훅이 두 번 실행됩니다.
+>
+> **omge가 시작되지 못하면**(uv 또는 Python 실패) PreToolUse는 도구 호출을 통과시킵니다. 막으면 작업 유무와 관계없이 모든 세션의
+> 모든 도구 호출이 거부되기 때문입니다. Stop은 계속 막으므로 고장 난 훅을 지나 작업이 끝나는 일은 없습니다.
 
 ## 그래프 예시
 
