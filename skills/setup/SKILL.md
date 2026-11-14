@@ -1,11 +1,21 @@
 ---
 name: setup
-description: Use when the user runs /omge:setup or asks to set up omge — checks that uv is available and offers to install the optional ponytail plugin.
+description: Use when the user runs /omge:setup or asks to set up omge — asks the message language, checks that uv is available and offers to install the optional ponytail plugin.
 ---
 
 # omge setup
 
-Answer in the user's language. Do the steps in order and report each result in one line.
+Do the steps in order and report each result in one line.
+
+## 0. Language
+
+Use AskUserQuestion with one question, written in both languages: which language should omge's
+messages use? Options: `English` / `한국어`. From here on, write every reply and every
+AskUserQuestion (question, options, descriptions) in the chosen language.
+
+Set `env.OMGE_LANG` (`en` or `ko`) in `~/.claude/settings.json`, keeping every other key; create the
+file if it is missing. omge's hooks and MCP server read it, so a new session shows their messages in
+that language. Report the change in one line.
 
 ## 1. uv
 

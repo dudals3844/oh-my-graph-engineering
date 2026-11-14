@@ -1,4 +1,4 @@
-[English](README.md) | [Korean](README.ko.md) | [Japanese](README.ja.md) | [Chinese](README.zh-CN.md) | [Spanish](README.es.md)
+[English](README.md) | [한국어](README.ko.md) | [日本語](README.ja.md) | [简体中文](README.zh-CN.md) | [Español](README.es.md)
 
 <h1 align="center">omge</h1>
 
@@ -172,7 +172,7 @@ dale un nuevo `name` y otro alias en `model:`, y haz referencia a él en el camp
 
 | Skill | Uso |
 |---|---|
-| `/omge:setup` | comprueba uv, avisa de hooks duplicados, ofrece ponytail |
+| `/omge:setup` | elige el idioma de los mensajes, comprueba uv, avisa de hooks duplicados, ofrece ponytail |
 | `/omge:graph` | referencia para escribir grafos y tipos de la biblioteca |
 | `omge:writing-a-plan` | la usan los nodos plan |
 | `omge:improving-skills` | corrige tus skills en `~/.claude/skills` a partir de la evidencia de la retro |
@@ -181,7 +181,7 @@ dale un nuevo `name` y otro alias en `model:`, y haz referencia a él en el camp
 
 | Variable | Efecto |
 |---|---|
-| `OMGE_LANG` | idioma de los mensajes: `en` (por defecto) o `ko`; sin ella, el locale se lee de `LC_ALL`, `LC_MESSAGES` o `LANG` (p. ej. `ko_KR.UTF-8`) |
+| `OMGE_LANG` | idioma de los mensajes: `en` (por defecto) o `ko`; sin ella, el locale se lee de `LC_ALL`, `LC_MESSAGES` o `LANG` (p. ej. `ko_KR.UTF-8`); `/omge:setup` la configura |
 | `WF_DB` | ruta de la base de datos de tareas (por defecto `~/.local/share/omge/wf.db`) |
 | `WF_LIBRARY` | ruta de la biblioteca de tipos, un repositorio git (por defecto `~/.local/share/omge/library/`) |
 
