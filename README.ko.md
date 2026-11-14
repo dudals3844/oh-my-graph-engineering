@@ -14,7 +14,7 @@
 
 **이제 이렇게 당신의 workflow를 정의하세요.**
 
-> 그래프 만들어 줘: plan → implement → review → tests. 테스트를 쓰기 전에 review를 하고, review는 omge:reviewer 에이전트가 하며 그 에이전트는 ponytail review 스킬도 실행해야 해. review가 실패하면 implement가 아니라 plan으로 돌아가. 앞으로 관련 작업에는 이 그래프를 적용해 줘.
+> 그래프 만들어 줘: plan → implement → review → tests. 테스트를 쓰기 전에 review를 하고, review는 내가 세팅해놓은 리뷰 에이전트가 하며 그 에이전트는 ponytail review 스킬도 실행해야 해. review가 실패하면 implement가 아니라 plan으로 돌아가. 앞으로 관련 작업에는 이 그래프를 적용해 줘.
 
 그러면 이 그래프가 됩니다.
 
@@ -33,10 +33,10 @@ nodes:
     on_fail: retry
   - id: review
     after: [implement]
-    agent: omge:reviewer
+    agent: my-reviewer  # your own reviewer agent (~/.claude/agents/my-reviewer.md)
     skill: ponytail:ponytail-review
     do: >-
-      Launch omge:reviewer on HEAD and invoke ponytail:ponytail-review. The review goes to a file
+      Launch my-reviewer on HEAD and invoke ponytail:ponytail-review. The review goes to a file
       outside the repo ending in `Verdict: pass` and `Reviewed SHA: <sha>`; wf_set review=<absolute path>.
     check: |
       grep -qx 'Verdict: pass' {review} && grep -qx "Reviewed SHA: $(git rev-parse HEAD)" {review}
@@ -51,7 +51,9 @@ nodes:
     do: Call wf_retro() and record a verdict.
 ```
 
-`agent:`와 `skill:`은 별개의 관문입니다. review는 omge:reviewer 실행과 ponytail:ponytail-review 호출이 모두 있어야 닫히고, plan과 implement는 노드가 준비된 뒤에 한 작업만, review는 현재 HEAD에 대한 리뷰만 받아들입니다.
+![plan → implement → review → tests → retro 워크플로, review 실패 시 plan으로 복귀](docs/workflow.svg)
+
+`agent:`와 `skill:`은 별개의 관문입니다. review는 직접 만든 리뷰 에이전트(my-reviewer) 실행과 ponytail:ponytail-review 호출이 모두 있어야 닫히고, plan과 implement는 노드가 준비된 뒤에 한 작업만, review는 현재 HEAD에 대한 리뷰만 받아들입니다.
 
 "앞으로"는 retro가 맡습니다. retro가 이 그래프를 라이브러리에 새 타입(`new_type`, `match` 문장 포함)으로 저장하고, 이후 그 문장에 맞는 요청은 이 그래프로 시작합니다.
 
@@ -74,22 +76,6 @@ omge는 작업을 노드 목록으로 바꾸고, 각 노드에는 닫히기 전�
 훅은 Claude가 노드를 건너뛰거나 일찍 멈추지 못하게 막고, 마지막 회고(retro)는 배운 것을 재사용
 가능한 워크플로 타입 라이브러리에 되돌려 줍니다.
 
-## 동작 방식
-
-```mermaid
-flowchart LR
-    T[템플릿 또는 일회성 그래프] --> S[wf_start]
-    S --> N[다음 노드]
-    N --> C{check 통과?}
-    C -- 아니오 --> N
-    C -- 예 --> D{남은 노드?}
-    D -- 예 --> N
-    D -- 아니오 --> R[wf_retro]
-    R --> L[(그래프 라이브러리)]
-    L --> T
-    H[훅] -. 노드 건너뛰기와 조기 종료 차단 .-> N
-```
-
 ## 기능
 
 - **검증되는 노드**: 셸 `check`가 있는 노드는 그 check가 0으로 끝나야만 `wf_complete`로 닫히고, check가 없는 `kind: human` 노드는 제출한 근거로 닫힙니다. 실패 시 동작은 `on_fail`이 정합니다.
@@ -104,9 +90,10 @@ flowchart LR
 ```bash
 claude plugin marketplace add dudals3844/oh-my-graph-engineering
 claude plugin install omge@oh-my-graph-engineering
+claude "/omge:setup"
 ```
 
-그다음 Claude Code에서 `/omge:setup`을 실행하세요. [uv](https://pypi.org/project/uv/) 설치 여부를 확인하고
+마지막 명령은 Claude Code를 열고 `/omge:setup`을 실행합니다. [uv](https://pypi.org/project/uv/) 설치 여부를 확인하고
 (훅과 `omge:wf` MCP 서버가 uv로 실행됩니다), 선택 사항인 ponytail 플러그인 설치를 제안합니다.
 
 처음 사용할 때 uv가 커밋된 `uv.lock`에 고정된 omge의 Python 의존성을 PyPI에서 받아옵니다.

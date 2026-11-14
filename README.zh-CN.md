@@ -14,7 +14,7 @@
 
 **用自然语言定义你的工作流。**
 
-> 帮我做一个图：plan → implement → review → tests。写测试之前先做 review，review 由 omge:reviewer 智能体完成，并且该智能体还必须运行 ponytail 的 review 技能。review 失败时回到 plan，而不是 implement。以后相关任务都套用这个图。
+> 帮我做一个图：plan → implement → review → tests。写测试之前先做 review，review 由我自己配置好的评审智能体完成，并且该智能体还必须运行 ponytail 的 review 技能。review 失败时回到 plan，而不是 implement。以后相关任务都套用这个图。
 
 它会变成这个图：
 
@@ -33,10 +33,10 @@ nodes:
     on_fail: retry
   - id: review
     after: [implement]
-    agent: omge:reviewer
+    agent: my-reviewer  # your own reviewer agent (~/.claude/agents/my-reviewer.md)
     skill: ponytail:ponytail-review
     do: >-
-      Launch omge:reviewer on HEAD and invoke ponytail:ponytail-review. The review goes to a file
+      Launch my-reviewer on HEAD and invoke ponytail:ponytail-review. The review goes to a file
       outside the repo ending in `Verdict: pass` and `Reviewed SHA: <sha>`; wf_set review=<absolute path>.
     check: |
       grep -qx 'Verdict: pass' {review} && grep -qx "Reviewed SHA: $(git rev-parse HEAD)" {review}
@@ -51,7 +51,9 @@ nodes:
     do: Call wf_retro() and record a verdict.
 ```
 
-`agent:` 和 `skill:` 是两道独立的关卡：review 必须既启动了 omge:reviewer、又调用了 ponytail:ponytail-review 才能关闭；plan 和 implement 只接受节点就绪之后完成的工作，review 只接受针对当前 HEAD 的评审。
+![plan → implement → review → tests → retro 工作流，review 失败时回到 plan](docs/workflow.svg)
+
+`agent:` 和 `skill:` 是两道独立的关卡：review 必须既启动了你自己的评审智能体（my-reviewer）、又调用了 ponytail:ponytail-review 才能关闭；plan 和 implement 只接受节点就绪之后完成的工作，review 只接受针对当前 HEAD 的评审。
 
 “以后”由 retro 实现：retro 把这个图作为新类型（`new_type`，附一句 `match`）存入库中，之后与这句话匹配的请求都从这个图开始。
 
@@ -73,22 +75,6 @@ omge 只是一个图工程工具。工作所需的技能和智能体，请按你
 omge 把任务变成一组节点，每个节点都有一个必须通过才能关闭的 shell `check`。
 钩子阻止 Claude 跳过节点或提前停止，任务结束时的复盘（retro）把经验写回可复用的工作流类型库。
 
-## 工作原理
-
-```mermaid
-flowchart LR
-    T[模板或一次性图] --> S[wf_start]
-    S --> N[下一个节点]
-    N --> C{check 通过?}
-    C -- 否 --> N
-    C -- 是 --> D{还有节点?}
-    D -- 是 --> N
-    D -- 否 --> R[wf_retro]
-    R --> L[(图库)]
-    L --> T
-    H[钩子] -. 阻止跳过节点和提前停止 .-> N
-```
-
 ## 功能
 
 - **带校验的节点**：带 shell `check` 的节点只有在 check 以 0 退出时才能用 `wf_complete` 关闭；没有 check 的 `kind: human` 节点凭提交的证据关闭。失败后的处理由 `on_fail` 决定。
@@ -103,9 +89,10 @@ flowchart LR
 ```bash
 claude plugin marketplace add dudals3844/oh-my-graph-engineering
 claude plugin install omge@oh-my-graph-engineering
+claude "/omge:setup"
 ```
 
-然后在 Claude Code 中运行 `/omge:setup`。它会检查是否已安装 [uv](https://pypi.org/project/uv/)
+最后一条命令会打开 Claude Code 并运行 `/omge:setup`。它会检查是否已安装 [uv](https://pypi.org/project/uv/)
 （钩子和 `omge:wf` MCP 服务器都通过 uv 运行），并提供安装可选的 ponytail 插件。
 
 首次使用时，uv 会按已提交的 `uv.lock` 从 PyPI 获取 omge 的 Python 依赖。

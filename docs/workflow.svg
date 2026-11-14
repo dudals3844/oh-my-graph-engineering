@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="200" viewBox="0 0 800 200" font-family="Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#57606a"/></marker>
+    <marker id="f" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#cf222e"/></marker>
+  </defs>
+  <rect x="0.5" y="0.5" width="799" height="199" rx="14" fill="#ffffff" stroke="#d0d7de"/>
+  <g fill="#f6f8fa" stroke="#57606a" stroke-width="1.5">
+    <rect x="15" y="90" width="120" height="70" rx="8"/>
+    <rect x="165" y="90" width="120" height="70" rx="8"/>
+    <rect x="315" y="90" width="170" height="70" rx="8" fill="#ddf4ff" stroke="#0969da"/>
+    <rect x="515" y="90" width="120" height="70" rx="8"/>
+    <rect x="665" y="90" width="120" height="70" rx="8"/>
+  </g>
+  <g font-size="16" font-weight="bold" fill="#1f2328" text-anchor="middle">
+    <text x="75" y="130">plan</text>
+    <text x="225" y="130">implement</text>
+    <text x="400" y="113">review</text>
+    <text x="575" y="130">tests</text>
+    <text x="725" y="130">retro</text>
+  </g>
+  <g font-size="12" fill="#0969da" text-anchor="middle">
+    <text x="400" y="133">agent: my-reviewer</text>
+    <text x="400" y="150">skill: ponytail-review</text>
+  </g>
+  <g stroke="#57606a" stroke-width="1.5" marker-end="url(#a)">
+    <line x1="135" y1="125" x2="163" y2="125"/>
+    <line x1="285" y1="125" x2="313" y2="125"/>
+    <line x1="485" y1="125" x2="513" y2="125"/>
+    <line x1="635" y1="125" x2="663" y2="125"/>
+  </g>
+  <path d="M400,90 C400,30 75,30 75,88" fill="none" stroke="#cf222e" stroke-width="1.5" stroke-dasharray="6 4" marker-end="url(#f)"/>
+  <text x="237" y="32" font-size="13" fill="#cf222e" text-anchor="middle">fail</text>
+</svg>

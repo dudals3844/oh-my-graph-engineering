@@ -14,7 +14,7 @@
 
 **ワークフローは普通の言葉で定義できます。**
 
-> グラフを作って: plan → implement → review → tests。テストを書く前に review を行い、review は omge:reviewer エージェントが担当し、そのエージェントは ponytail の review スキルも実行すること。review が失敗したら implement ではなく plan に戻る。今後、関連するタスクにはこのグラフを適用して。
+> グラフを作って: plan → implement → review → tests。テストを書く前に review を行い、review は自分で用意したレビューエージェントが担当し、そのエージェントは ponytail の review スキルも実行すること。review が失敗したら implement ではなく plan に戻る。今後、関連するタスクにはこのグラフを適用して。
 
 すると次のグラフになります。
 
@@ -33,10 +33,10 @@ nodes:
     on_fail: retry
   - id: review
     after: [implement]
-    agent: omge:reviewer
+    agent: my-reviewer  # your own reviewer agent (~/.claude/agents/my-reviewer.md)
     skill: ponytail:ponytail-review
     do: >-
-      Launch omge:reviewer on HEAD and invoke ponytail:ponytail-review. The review goes to a file
+      Launch my-reviewer on HEAD and invoke ponytail:ponytail-review. The review goes to a file
       outside the repo ending in `Verdict: pass` and `Reviewed SHA: <sha>`; wf_set review=<absolute path>.
     check: |
       grep -qx 'Verdict: pass' {review} && grep -qx "Reviewed SHA: $(git rev-parse HEAD)" {review}
@@ -51,7 +51,9 @@ nodes:
     do: Call wf_retro() and record a verdict.
 ```
 
-`agent:` と `skill:` は別々のゲートです。review は omge:reviewer の起動と ponytail:ponytail-review の呼び出しの両方があって初めて閉じ、plan と implement はノードが ready になってからの作業だけを、review は現在の HEAD のレビューだけを受け付けます。
+![plan → implement → review → tests → retro のワークフロー、review が失敗すると plan に戻る](docs/workflow.svg)
+
+`agent:` と `skill:` は別々のゲートです。review は自分のレビューエージェント（my-reviewer）の起動と ponytail:ponytail-review の呼び出しの両方があって初めて閉じ、plan と implement はノードが ready になってからの作業だけを、review は現在の HEAD のレビューだけを受け付けます。
 
 「今後」は retro が担います。retro がこのグラフをライブラリに新しいタイプ（`new_type`、`match` の一文付き）として保存し、以後その一文に合う依頼はこのグラフから始まります。
 
@@ -74,22 +76,6 @@ omge はタスクをノードの列に変換し、各ノードにはクローズ
 フックは Claude がノードを飛ばしたり早く止まったりするのを防ぎ、最後のレトロ（retro）で得た知見を
 再利用可能なワークフロータイプのライブラリへ戻します。
 
-## 仕組み
-
-```mermaid
-flowchart LR
-    T[テンプレートまたは単発グラフ] --> S[wf_start]
-    S --> N[次のノード]
-    N --> C{check は成功?}
-    C -- いいえ --> N
-    C -- はい --> D{残りのノード?}
-    D -- はい --> N
-    D -- いいえ --> R[wf_retro]
-    R --> L[(グラフライブラリ)]
-    L --> T
-    H[フック] -. ノードの飛ばしと早期終了をブロック .-> N
-```
-
 ## 機能
 
 - **検証付きノード**: シェルの `check` を持つノードは、その check が 0 で終了したときだけ `wf_complete` で閉じられます。check のない `kind: human` ノードは提出された証拠で閉じます。失敗時の動作は `on_fail` で決まります。
@@ -104,9 +90,10 @@ flowchart LR
 ```bash
 claude plugin marketplace add dudals3844/oh-my-graph-engineering
 claude plugin install omge@oh-my-graph-engineering
+claude "/omge:setup"
 ```
 
-次に Claude Code で `/omge:setup` を実行します。[uv](https://pypi.org/project/uv/) がインストールされているかを確認し
+最後のコマンドは Claude Code を開いて `/omge:setup` を実行します。[uv](https://pypi.org/project/uv/) がインストールされているかを確認し
 （フックと `omge:wf` MCP サーバーは uv 経由で動きます）、オプションの ponytail プラグインのインストールを提案します。
 
 初回の使用時に、uv がコミット済みの `uv.lock` に固定された omge の Python 依存関係を PyPI から取得します。

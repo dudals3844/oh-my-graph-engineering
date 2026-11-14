@@ -14,7 +14,7 @@
 
 **Define your workflow in plain words.**
 
-> Make me a graph: plan → implement → review → tests. Review must happen before writing tests, done by the omge:reviewer agent, and that agent must also run the ponytail review skill. If the review fails, go back to plan, not implement. From now on, apply this graph to related tasks.
+> Make me a graph: plan → implement → review → tests. Review must happen before writing tests, done by the reviewer agent I set up, and that agent must also run the ponytail review skill. If the review fails, go back to plan, not implement. From now on, apply this graph to related tasks.
 
 It becomes this graph:
 
@@ -33,10 +33,10 @@ nodes:
     on_fail: retry
   - id: review
     after: [implement]
-    agent: omge:reviewer
+    agent: my-reviewer  # your own reviewer agent (~/.claude/agents/my-reviewer.md)
     skill: ponytail:ponytail-review
     do: >-
-      Launch omge:reviewer on HEAD and invoke ponytail:ponytail-review. The review goes to a file
+      Launch my-reviewer on HEAD and invoke ponytail:ponytail-review. The review goes to a file
       outside the repo ending in `Verdict: pass` and `Reviewed SHA: <sha>`; wf_set review=<absolute path>.
     check: |
       grep -qx 'Verdict: pass' {review} && grep -qx "Reviewed SHA: $(git rev-parse HEAD)" {review}
@@ -51,7 +51,9 @@ nodes:
     do: Call wf_retro() and record a verdict.
 ```
 
-`agent:` and `skill:` are separate gates: review closes only after an omge:reviewer launch and a ponytail:ponytail-review call, and plan and implement accept only work done since their node became ready, review only a review of the current HEAD.
+![plan → implement → review → tests → retro workflow, review fails back to plan](docs/workflow.svg)
+
+`agent:` and `skill:` are separate gates: review closes only after a launch of your reviewer agent (my-reviewer) and a ponytail:ponytail-review call, and plan and implement accept only work done since their node became ready, review only a review of the current HEAD.
 
 "From now on" is the retro: it saves this graph to your library as a new type (`new_type`, with a `match` sentence), and later requests that match it start with this graph.
 
@@ -72,22 +74,6 @@ halfway. omge turns a task into a list of nodes, each with a shell `check` that 
 closes. Hooks keep Claude from skipping nodes or stopping early, and a retro at the end feeds what was
 learned back into a reusable library of workflow types.
 
-## How it works
-
-```mermaid
-flowchart LR
-    T[Template or one-off graph] --> S[wf_start]
-    S --> N[Next node]
-    N --> C{check passes?}
-    C -- no --> N
-    C -- yes --> D{more nodes?}
-    D -- yes --> N
-    D -- no --> R[wf_retro]
-    R --> L[(Graph library)]
-    L --> T
-    H[Hooks] -. block skipping a node or stopping early .-> N
-```
-
 ## Features
 
 - **Checked nodes**: a node with a shell `check` closes with `wf_complete` only when the check exits 0; a `kind: human` node without one closes on the evidence given. `on_fail` decides what happens next.
@@ -102,9 +88,10 @@ flowchart LR
 ```bash
 claude plugin marketplace add dudals3844/oh-my-graph-engineering
 claude plugin install omge@oh-my-graph-engineering
+claude "/omge:setup"
 ```
 
-Then run `/omge:setup` in Claude Code. It checks that [uv](https://pypi.org/project/uv/) is installed (the
+The last command opens Claude Code and runs `/omge:setup`: it checks that [uv](https://pypi.org/project/uv/) is installed (the
 hooks and the `omge:wf` MCP server run through it) and offers to install the optional ponytail plugin.
 
 On first use, uv resolves omge's Python dependencies from PyPI, pinned by the committed `uv.lock`.

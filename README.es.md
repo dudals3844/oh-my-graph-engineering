@@ -14,7 +14,7 @@
 
 **Define tu flujo de trabajo con palabras normales.**
 
-> Hazme un grafo: plan → implement → review → tests. La revisión va antes de escribir los tests, la hace el agente omge:reviewer, y ese agente también debe ejecutar el skill de revisión de ponytail. Si la revisión falla, vuelve a plan, no a implement. De ahora en adelante, aplica este grafo a las tareas relacionadas.
+> Hazme un grafo: plan → implement → review → tests. La revisión va antes de escribir los tests, la hace el agente revisor que configuré, y ese agente también debe ejecutar el skill de revisión de ponytail. Si la revisión falla, vuelve a plan, no a implement. De ahora en adelante, aplica este grafo a las tareas relacionadas.
 
 Se convierte en este grafo:
 
@@ -33,10 +33,10 @@ nodes:
     on_fail: retry
   - id: review
     after: [implement]
-    agent: omge:reviewer
+    agent: my-reviewer  # your own reviewer agent (~/.claude/agents/my-reviewer.md)
     skill: ponytail:ponytail-review
     do: >-
-      Launch omge:reviewer on HEAD and invoke ponytail:ponytail-review. The review goes to a file
+      Launch my-reviewer on HEAD and invoke ponytail:ponytail-review. The review goes to a file
       outside the repo ending in `Verdict: pass` and `Reviewed SHA: <sha>`; wf_set review=<absolute path>.
     check: |
       grep -qx 'Verdict: pass' {review} && grep -qx "Reviewed SHA: $(git rev-parse HEAD)" {review}
@@ -51,7 +51,9 @@ nodes:
     do: Call wf_retro() and record a verdict.
 ```
 
-`agent:` y `skill:` son puertas independientes: review solo se cierra tras lanzar omge:reviewer y llamar a ponytail:ponytail-review, y plan e implement solo aceptan trabajo hecho desde que su nodo quedó listo, y review solo una revisión del HEAD actual.
+![flujo plan → implement → review → tests → retro; si review falla, vuelve a plan](docs/workflow.svg)
+
+`agent:` y `skill:` son puertas independientes: review solo se cierra tras lanzar tu agente revisor (my-reviewer) y llamar a ponytail:ponytail-review, y plan e implement solo aceptan trabajo hecho desde que su nodo quedó listo, y review solo una revisión del HEAD actual.
 
 «De ahora en adelante» lo hace el retro: guarda este grafo en tu biblioteca como un tipo nuevo (`new_type`, con una frase `match`), y las peticiones que encajen con esa frase empiezan con él.
 
@@ -74,22 +76,6 @@ se detiene a medias. omge convierte una tarea en una lista de nodos, cada uno co
 pasar antes de cerrarse. Los hooks impiden que Claude se salte nodos o se detenga antes de tiempo, y una
 retrospectiva (retro) al final devuelve lo aprendido a una biblioteca reutilizable de tipos de workflow.
 
-## Cómo funciona
-
-```mermaid
-flowchart LR
-    T[Plantilla o grafo puntual] --> S[wf_start]
-    S --> N[Siguiente nodo]
-    N --> C{check pasa?}
-    C -- no --> N
-    C -- sí --> D{quedan nodos?}
-    D -- sí --> N
-    D -- no --> R[wf_retro]
-    R --> L[(Biblioteca de grafos)]
-    L --> T
-    H[Hooks] -. bloquean saltar un nodo o parar antes .-> N
-```
-
 ## Características
 
 - **Nodos verificados**: un nodo con `check` de shell se cierra con `wf_complete` solo cuando el check termina con 0; un nodo `kind: human` sin check se cierra con la evidencia aportada. `on_fail` decide qué pasa después.
@@ -104,9 +90,10 @@ flowchart LR
 ```bash
 claude plugin marketplace add dudals3844/oh-my-graph-engineering
 claude plugin install omge@oh-my-graph-engineering
+claude "/omge:setup"
 ```
 
-Después ejecuta `/omge:setup` en Claude Code. Comprueba que [uv](https://pypi.org/project/uv/) está instalado
+El último comando abre Claude Code y ejecuta `/omge:setup`: comprueba que [uv](https://pypi.org/project/uv/) está instalado
 (los hooks y el servidor MCP `omge:wf` se ejecutan con él) y ofrece instalar el plugin opcional ponytail.
 
 En el primer uso, uv resuelve las dependencias de Python de omge desde PyPI, fijadas por el `uv.lock`
