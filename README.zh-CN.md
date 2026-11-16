@@ -57,6 +57,61 @@ nodes:
 
 “以后”由 retro 实现：retro 把这个图作为新类型（`new_type`，附一句 `match`）存入库中，之后与这句话匹配的请求都从这个图开始。
 
+更长的流程也是同样的写法：
+
+> 帮我做一个图：investigate → plan → implement，然后并行做 unit tests 和独立 review。测试失败回到 implement，review 失败回到 plan。两者都通过后跑 integration 测试，然后在 retro 之前等待我明确批准发布。
+
+它会变成这个图：
+
+```yaml
+params:
+  review: '^/[A-Za-z0-9._/-]+\.md$'
+nodes:
+  - id: investigate
+    agent: my-researcher  # your own research agent that can write files (~/.claude/agents/my-researcher.md)
+    do: 启动 my-researcher 梳理受影响的代码，把附出处的发现写入 FINDINGS.md。
+    check: test -n "$(find FINDINGS.md -newermt "$WF_READY_SINCE")"
+    on_fail: retry
+  - id: plan
+    after: [investigate]
+    do: 根据 FINDINGS.md 把计划写入 PLAN.md。
+    check: test -n "$(find PLAN.md -newermt "$WF_READY_SINCE")"
+    on_fail: retry
+  - id: implement
+    after: [plan]
+    do: 实现计划并提交。
+    check: test -n "$(git log --since="$WF_READY_SINCE")" && [ -z "$(git status --porcelain)" ]
+    on_fail: retry
+  - id: unit_tests
+    after: [implement]
+    do: 运行 unit 测试。
+    check: uv run pytest -q tests/unit
+    on_fail: implement
+  - id: review
+    after: [implement]
+    agent: my-reviewer
+    do: >-
+      对 HEAD 启动 my-reviewer。评审写入仓库外的文件，以
+      `Verdict: pass` 和 `Reviewed SHA: <sha>` 结尾；wf_set review=<绝对路径>。
+    check: |
+      grep -qx 'Verdict: pass' {review} && grep -qx "Reviewed SHA: $(git rev-parse HEAD)" {review}
+    on_fail: plan
+  - id: integration
+    after: [unit_tests, review]
+    do: 运行 integration 测试。
+    check: uv run pytest -q tests/integration
+    on_fail: implement
+  - id: release
+    after: [integration]
+    kind: human
+    do: 请我批准发布，并把我的回复记录为证据。
+  - id: retro
+    after: [release]
+    do: 调用 wf_retro() 并记录 verdict。
+```
+
+`unit_tests` 和 `review` 都只等待 `implement`，因此会同时就绪；`integration` 等待两者。`release` 是没有 check 的 `kind: human` 节点，凭记录的证据（即你的批准）关闭。
+
 **你只需专注于图工程。** 设计步骤和校验，omge 负责强制执行，具体工作由你已有的智能体和技能（superpowers、ponytail、你自己的）完成。
 
 - 节点可以要求任意已安装的智能体（`agent:`）或技能（`skill:`），omge 会拦住节点直到该调用发生。

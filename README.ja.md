@@ -57,6 +57,61 @@ nodes:
 
 「今後」は retro が担います。retro がこのグラフをライブラリに新しいタイプ（`new_type`、`match` の一文付き）として保存し、以後その一文に合う依頼はこのグラフから始まります。
 
+もっと長いプロセスも同じやり方です。
+
+> グラフを作って: investigate → plan → implement、その後 unit tests と独立した review を並列で。テストが失敗したら implement に、review が失敗したら plan に戻る。両方通ったら integration テストを実行し、retro の前に自分の明示的なリリース承認を待つこと。
+
+すると次のグラフになります。
+
+```yaml
+params:
+  review: '^/[A-Za-z0-9._/-]+\.md$'
+nodes:
+  - id: investigate
+    agent: my-researcher  # your own research agent that can write files (~/.claude/agents/my-researcher.md)
+    do: my-researcher を起動して影響するコードを調べ、出典付きの調査結果を FINDINGS.md に書く。
+    check: test -n "$(find FINDINGS.md -newermt "$WF_READY_SINCE")"
+    on_fail: retry
+  - id: plan
+    after: [investigate]
+    do: FINDINGS.md をもとに計画を PLAN.md に書く。
+    check: test -n "$(find PLAN.md -newermt "$WF_READY_SINCE")"
+    on_fail: retry
+  - id: implement
+    after: [plan]
+    do: 計画を実装してコミットする。
+    check: test -n "$(git log --since="$WF_READY_SINCE")" && [ -z "$(git status --porcelain)" ]
+    on_fail: retry
+  - id: unit_tests
+    after: [implement]
+    do: unit テストを実行する。
+    check: uv run pytest -q tests/unit
+    on_fail: implement
+  - id: review
+    after: [implement]
+    agent: my-reviewer
+    do: >-
+      HEAD に対して my-reviewer を起動する。レビューはリポジトリ外のファイルに書き、
+      `Verdict: pass` と `Reviewed SHA: <sha>` で終える。wf_set review=<絶対パス>。
+    check: |
+      grep -qx 'Verdict: pass' {review} && grep -qx "Reviewed SHA: $(git rev-parse HEAD)" {review}
+    on_fail: plan
+  - id: integration
+    after: [unit_tests, review]
+    do: integration テストを実行する。
+    check: uv run pytest -q tests/integration
+    on_fail: implement
+  - id: release
+    after: [integration]
+    kind: human
+    do: ユーザーにリリースの承認を求め、その返答を証拠として記録する。
+  - id: retro
+    after: [release]
+    do: wf_retro() を呼び、verdict を記録する。
+```
+
+`unit_tests` と `review` はどちらも `implement` だけを待つので同時に ready になり、`integration` は両方を待ちます。`release` は check のない `kind: human` ノードで、記録された証拠、つまりあなたの承認で閉じます。
+
 **あなたはグラフエンジニアリングだけに集中できます。** ステップとチェックを設計すれば omge がそれを強制し、作業はすでに持っているエージェントとスキル（superpowers、ponytail、自作のもの）が行います。
 
 - ノードはインストール済みの任意のエージェント（`agent:`）やスキル（`skill:`）を要求でき、omge はその呼び出しが行われるまでノードを止めます。

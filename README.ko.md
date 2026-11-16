@@ -57,6 +57,61 @@ nodes:
 
 "앞으로"는 retro가 맡습니다. retro가 이 그래프를 라이브러리에 새 타입(`new_type`, `match` 문장 포함)으로 저장하고, 이후 그 문장에 맞는 요청은 이 그래프로 시작합니다.
 
+더 긴 프로세스도 같은 방식입니다.
+
+> 그래프 만들어 줘: investigate → plan → implement, 그다음 unit tests와 독립 review를 병렬로. 테스트가 실패하면 implement로, review가 실패하면 plan으로 돌아가. 둘 다 통과하면 integration 테스트를 돌리고, retro 전에 내 명시적인 릴리스 승인을 기다려.
+
+그러면 이 그래프가 됩니다.
+
+```yaml
+params:
+  review: '^/[A-Za-z0-9._/-]+\.md$'
+nodes:
+  - id: investigate
+    agent: my-researcher  # your own research agent that can write files (~/.claude/agents/my-researcher.md)
+    do: my-researcher를 실행해 영향받는 코드를 파악하고, 출처를 단 조사 결과를 FINDINGS.md에 쓴다.
+    check: test -n "$(find FINDINGS.md -newermt "$WF_READY_SINCE")"
+    on_fail: retry
+  - id: plan
+    after: [investigate]
+    do: FINDINGS.md를 바탕으로 PLAN.md에 계획을 쓴다.
+    check: test -n "$(find PLAN.md -newermt "$WF_READY_SINCE")"
+    on_fail: retry
+  - id: implement
+    after: [plan]
+    do: 계획을 구현하고 커밋한다.
+    check: test -n "$(git log --since="$WF_READY_SINCE")" && [ -z "$(git status --porcelain)" ]
+    on_fail: retry
+  - id: unit_tests
+    after: [implement]
+    do: unit 테스트를 실행한다.
+    check: uv run pytest -q tests/unit
+    on_fail: implement
+  - id: review
+    after: [implement]
+    agent: my-reviewer
+    do: >-
+      HEAD에 대해 my-reviewer를 실행한다. 리뷰는 repo 밖 파일에 쓰고
+      `Verdict: pass`와 `Reviewed SHA: <sha>`로 끝낸다. wf_set review=<절대 경로>.
+    check: |
+      grep -qx 'Verdict: pass' {review} && grep -qx "Reviewed SHA: $(git rev-parse HEAD)" {review}
+    on_fail: plan
+  - id: integration
+    after: [unit_tests, review]
+    do: integration 테스트를 실행한다.
+    check: uv run pytest -q tests/integration
+    on_fail: implement
+  - id: release
+    after: [integration]
+    kind: human
+    do: 나에게 릴리스 승인을 요청하고 내 답을 증거로 기록한다.
+  - id: retro
+    after: [release]
+    do: wf_retro()를 호출하고 verdict를 기록한다.
+```
+
+`unit_tests`와 `review`는 둘 다 `implement`만 기다리므로 함께 준비되고, `integration`은 둘 다 기다립니다. `release`는 check 없는 `kind: human` 노드라 기록된 증거, 즉 사용자의 승인으로 닫힙니다.
+
 **사용자는 그래프 엔지니어링만 하면 됩니다.** 단계와 검증을 설계하면 omge가 그것을 강제하고, 일은 이미 가진 에이전트와 스킬(superpowers, ponytail, 직접 만든 것)이 합니다.
 
 - 노드는 설치된 어떤 에이전트(`agent:`)나 스킬(`skill:`)이든 요구할 수 있고, omge는 그 호출이 일어날 때까지 노드를 막습니다.

@@ -57,6 +57,61 @@ nodes:
 
 "From now on" is the retro: it saves this graph to your library as a new type (`new_type`, with a `match` sentence), and later requests that match it start with this graph.
 
+A longer process works the same way:
+
+> Make me a graph: investigate → plan → implement, then unit tests and an independent review in parallel. A test failure goes back to implement, a review failure back to plan. After both pass, run the integration tests, then wait for my explicit release approval before the retro.
+
+It becomes this graph:
+
+```yaml
+params:
+  review: '^/[A-Za-z0-9._/-]+\.md$'
+nodes:
+  - id: investigate
+    agent: my-researcher  # your own research agent that can write files (~/.claude/agents/my-researcher.md)
+    do: Launch my-researcher to map the affected code; write cited findings to FINDINGS.md.
+    check: test -n "$(find FINDINGS.md -newermt "$WF_READY_SINCE")"
+    on_fail: retry
+  - id: plan
+    after: [investigate]
+    do: Write the plan to PLAN.md from FINDINGS.md.
+    check: test -n "$(find PLAN.md -newermt "$WF_READY_SINCE")"
+    on_fail: retry
+  - id: implement
+    after: [plan]
+    do: Implement the plan and commit.
+    check: test -n "$(git log --since="$WF_READY_SINCE")" && [ -z "$(git status --porcelain)" ]
+    on_fail: retry
+  - id: unit_tests
+    after: [implement]
+    do: Run the unit tests.
+    check: uv run pytest -q tests/unit
+    on_fail: implement
+  - id: review
+    after: [implement]
+    agent: my-reviewer
+    do: >-
+      Launch my-reviewer on HEAD. The review goes to a file outside the repo ending in
+      `Verdict: pass` and `Reviewed SHA: <sha>`; wf_set review=<absolute path>.
+    check: |
+      grep -qx 'Verdict: pass' {review} && grep -qx "Reviewed SHA: $(git rev-parse HEAD)" {review}
+    on_fail: plan
+  - id: integration
+    after: [unit_tests, review]
+    do: Run the integration tests.
+    check: uv run pytest -q tests/integration
+    on_fail: implement
+  - id: release
+    after: [integration]
+    kind: human
+    do: Ask me to approve the release and record my reply as the evidence.
+  - id: retro
+    after: [release]
+    do: Call wf_retro() and record a verdict.
+```
+
+`unit_tests` and `review` both wait only on `implement`, so they are ready together; `integration` waits for both. `release` is a `kind: human` node with no check: it closes on the evidence recorded, here your approval.
+
 **You only do the graph engineering.** Design the steps and the checks; omge enforces them; your existing agents and skills (superpowers, ponytail, your own) do the work.
 
 - A node can require any installed agent (`agent:`) or skill (`skill:`); omge holds it until that call happens.

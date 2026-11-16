@@ -57,6 +57,61 @@ nodes:
 
 «De ahora en adelante» lo hace el retro: guarda este grafo en tu biblioteca como un tipo nuevo (`new_type`, con una frase `match`), y las peticiones que encajen con esa frase empiezan con él.
 
+Un proceso más largo funciona igual:
+
+> Hazme un grafo: investigate → plan → implement, luego unit tests y una revisión independiente en paralelo. Si fallan los tests, vuelve a implement; si falla la revisión, a plan. Cuando ambos pasen, ejecuta los tests de integración y espera mi aprobación explícita del release antes del retro.
+
+Se convierte en este grafo:
+
+```yaml
+params:
+  review: '^/[A-Za-z0-9._/-]+\.md$'
+nodes:
+  - id: investigate
+    agent: my-researcher  # your own research agent that can write files (~/.claude/agents/my-researcher.md)
+    do: Lanza my-researcher para mapear el código afectado; escribe los hallazgos con citas en FINDINGS.md.
+    check: test -n "$(find FINDINGS.md -newermt "$WF_READY_SINCE")"
+    on_fail: retry
+  - id: plan
+    after: [investigate]
+    do: Escribe el plan en PLAN.md a partir de FINDINGS.md.
+    check: test -n "$(find PLAN.md -newermt "$WF_READY_SINCE")"
+    on_fail: retry
+  - id: implement
+    after: [plan]
+    do: Implementa el plan y haz commit.
+    check: test -n "$(git log --since="$WF_READY_SINCE")" && [ -z "$(git status --porcelain)" ]
+    on_fail: retry
+  - id: unit_tests
+    after: [implement]
+    do: Ejecuta los tests unitarios.
+    check: uv run pytest -q tests/unit
+    on_fail: implement
+  - id: review
+    after: [implement]
+    agent: my-reviewer
+    do: >-
+      Lanza my-reviewer sobre HEAD. La revisión va a un archivo fuera del repo que termina en
+      `Verdict: pass` y `Reviewed SHA: <sha>`; wf_set review=<ruta absoluta>.
+    check: |
+      grep -qx 'Verdict: pass' {review} && grep -qx "Reviewed SHA: $(git rev-parse HEAD)" {review}
+    on_fail: plan
+  - id: integration
+    after: [unit_tests, review]
+    do: Ejecuta los tests de integración.
+    check: uv run pytest -q tests/integration
+    on_fail: implement
+  - id: release
+    after: [integration]
+    kind: human
+    do: Pídeme que apruebe el release y registra mi respuesta como evidencia.
+  - id: retro
+    after: [release]
+    do: Llama a wf_retro() y registra un veredicto.
+```
+
+`unit_tests` y `review` solo esperan a `implement`, así que quedan listos a la vez; `integration` espera a ambos. `release` es un nodo `kind: human` sin check: se cierra con la evidencia registrada, aquí tu aprobación.
+
 **Tú solo haces la ingeniería del grafo.** Diseña los pasos y los checks; omge los hace cumplir; tus agentes y skills de siempre (superpowers, ponytail, los tuyos) hacen el trabajo.
 
 - Un nodo puede exigir cualquier agente (`agent:`) o skill (`skill:`) instalado; omge lo retiene hasta que esa llamada ocurra.
