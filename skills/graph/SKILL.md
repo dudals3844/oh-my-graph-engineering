@@ -63,10 +63,21 @@ A `retro` node is required and must be last (only `kind: human` nodes may follow
 - `next`: a decision — a list of `{to, when, label, max}`. `when` is bash; the first matching edge wins;
   an edge without `when` is the else. An edge back must go to an ancestor; `max` (default 1) bounds how
   often it is taken.
+- `protected: true`: an independent-review gate. `wf_waive` (and the user's `wf waive`) needs a reviewer's
+  `Verdict: pass` whose `Reviewed SHA` is the current HEAD, recorded since the node became ready.
+- `floor: true`: a measurement/evidence gate; implies `protected`, needs a `check` and no `carry`. It is
+  never waived. No node after it closes (a waive included) unless it is done and its check passes when
+  run again: a failing one reopens with everything after it. A floor a route skipped blocks everything
+  after it, so place a floor on every path that reaches what it guards.
 - `timeout`: check timeout in seconds (default 120).
 - `pitfalls`: a list of short warnings shown with `do`.
 
-`agent`, `skill` and `carry` cannot go on `retro`.
+`agent`, `skill`, `carry`, `protected` and `floor` cannot go on `retro`.
+
+A running task keeps its gates as started: `wf_revise` cannot delete a `protected`/`floor` node, change
+any of its fields (`do`, `check`, `after`, `next`, gates, the flags themselves), or detach a node after
+it. It may add a gate. Dropping or loosening one is a change to the type (`update_type` with a reason,
+`new_type`) or a new one-off graph, and takes effect for the next task.
 
 ## Params and quoting
 

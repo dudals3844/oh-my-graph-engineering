@@ -19,6 +19,8 @@ EN: dict[str, str] = {
     "graph.agent_field": ("node {nid}: `agent` is a subagent_type string or a list of them, and"
                           " `agent_mode` is require|recommend (not allowed on retro)"),
     "graph.carry_field": "node {nid}: `carry` takes only `code`, and only on a node with a check",
+    "graph.gate_field": ("node {nid}: `protected` and `floor` are booleans, not on `retro`;"
+                         " `floor` needs a check and no `carry`"),
     "graph.param_unsaid": ("node {nid}: check/when reads param {params} but no `do` of this node or"
                            " an earlier one names it — say in `do` what to wf_set (the value's"
                            " format, the file or key to create)"),
@@ -59,6 +61,8 @@ EN: dict[str, str] = {
                           " another check or `wf_waive`"),
     "graph.revise_skill": "cannot change or remove the skill of pending node(s) {ids} — `wf_waive`",
     "graph.revise_agent": "cannot change or remove the agent of pending node(s) {ids} — `wf_waive`",
+    "graph.revise_protected": ("`{nid}` is a protected gate — a running task cannot delete it, change"
+                               " it, or detach what follows it; change the type and start a new task"),
     "graph.revise_summary": "changed: {parts} — {reason}",
     "graph.none": "none",
     "graph.skill": "skill",
@@ -146,6 +150,8 @@ KO: dict[str, str] = {
     "graph.agent_field": ("node {nid}: `agent` 는 subagent_type 문자열이나 그 목록,"
                           " `agent_mode` 는 require|recommend 다 (retro 에는 못 단다)"),
     "graph.carry_field": "node {nid}: `carry` 는 `code` 만, check 가 있는 노드에만 단다",
+    "graph.gate_field": ("node {nid}: `protected`·`floor` 는 boolean 이고 `retro` 에는 못 단다;"
+                         " `floor` 는 check 가 있어야 하고 `carry` 를 못 단다"),
     "graph.param_unsaid": ("node {nid}: check/when 이 param {params} 를 읽는데 이 노드나"
                            " 앞 노드의 `do` 가 그 이름을 말하지 않는다 — `do` 에 무엇을 wf_set"
                            " 해야 하는지(값의 형식, 만들어야 할 파일·키)를 적어라"),
@@ -180,6 +186,8 @@ KO: dict[str, str] = {
     "graph.revise_bare": "pending 노드 {ids} 의 check 를 없앨 수 없다 — 다른 check 로 바꾸거나 `wf_waive`",
     "graph.revise_skill": "pending 노드 {ids} 의 skill 을 바꾸거나 없앨 수 없다 — `wf_waive`",
     "graph.revise_agent": "pending 노드 {ids} 의 agent 를 바꾸거나 없앨 수 없다 — `wf_waive`",
+    "graph.revise_protected": ("`{nid}` 는 보호 게이트다 — 실행 중인 task 에서 지우거나 바꾸거나 그 뒤 노드를"
+                               " 떼어낼 수 없다. type 을 바꾸고 새 task 를 시작한다"),
     "graph.revise_summary": "변경: {parts} — {reason}",
     "graph.none": "없음",
     "graph.skill": "스킬",

@@ -154,12 +154,20 @@ def close(conn: sqlite3.Connection, task: sqlite3.Row, node_id: str, *, status: 
     loop out of turns, raises and the node stays pending. A waived decision takes the
     forward `route` the user named."""
     t = graph.parse(task["graph"])
+    node = next(n for n in t["nodes"] if n["id"] == node_id)
+    if status == "waived" and node.get("floor"):
+        raise graph.WfError(i18n.t("checks.floor_waive", node=node_id))
     if status == "waived":  # agent `wf_waive` and user `wf waive` both stand on the receipts
         receipts = graph.review_receipts(conn, task, node_id,
                                          graph.ready_since(conn, task, t, node_id))
         if any(r["verdict"] == "blocking" for r in receipts.values()):
             raise graph.WfError(i18n.t("checks.review_blocking"))
-    node = next(n for n in t["nodes"] if n["id"] == node_id)
+        if node.get("protected") and not any(
+                r["verdict"] == "pass" and r["sha"] and r["sha"] == r.get("head")
+                == _head(task["dir"]) for r in receipts.values()):
+            raise graph.WfError(i18n.t("checks.protected_waive", node=node_id))
+    if stale := _floor_stale(conn, task, t, node_id):
+        raise graph.WfError(i18n.t("checks.floor_stale", node=node_id, floor=stale))
     tid = task["id"]
     edge = back = None
     forward = [e for e in node["next"] if not graph.is_back(t, node_id, e["to"])]
@@ -222,6 +230,42 @@ def close(conn: sqlite3.Connection, task: sqlite3.Row, node_id: str, *, status: 
         _settle(conn, t, tid)
 
 
+def _check_cmd(conn: sqlite3.Connection, task: sqlite3.Row, t: dict, node: dict
+               ) -> tuple[str, dict[str, str]]:
+    """`node`'s check rendered, and the env it runs in. Raises on an unset param."""
+    cmd, values = render(node["check"], json.loads(task["params"]), t["params"])
+    env = {**_env(task, node), **values}
+    if node.get("skill") and (at := graph.skill_at(conn, task, t, node)):
+        # GitHub's `created_at` format: a receipt must postdate the call
+        env["WF_SKILL_AT"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(at))
+    return cmd, env
+
+
+def _floor_stale(conn: sqlite3.Connection, task: sqlite3.Row, t: dict, node_id: str) -> str | None:
+    """The first `floor` ancestor of `node_id` that is not done, or whose check fails when run
+    again now (then reopened with everything after it). A stored pass is never trusted; the
+    reopen is no loop, so it spends no edge's `max`."""
+    rows = store.node_rows(conn, task["id"])
+    for f in t["nodes"]:
+        if not f.get("floor") or f["id"] == node_id or node_id not in graph.descendants(t, f["id"]):
+            continue
+        if rows[f["id"]]["status"] != "done":  # pending, or skipped by a route: never measured
+            return f["id"]
+        try:
+            cmd, env = _check_cmd(conn, task, t, f)
+        except graph.WfError:
+            cmd = None  # an unset param: the check cannot pass
+        if cmd and run(cmd, task["dir"], env, f["timeout"])[0] == 0:
+            continue
+        with conn:
+            conn.execute("BEGIN IMMEDIATE")
+            for nid in graph.descendants(t, f["id"]):
+                store.set_node(conn, task["id"], nid, status="pending", route=None)
+            store.event(conn, task["id"], f["id"], "reopen", f["id"])
+        return f["id"]
+    return None
+
+
 def _go_back(conn: sqlite3.Connection, t: dict, tid: int, src: str, to: str) -> None:
     """Reopen `to` and everything after it, one more loop on `to`. Inside the caller's
     transaction."""
@@ -256,8 +300,9 @@ def _settle(conn: sqlite3.Connection, t: dict, tid: int) -> None:
             store.set_node(conn, tid, nid, status="skipped")
             store.event(conn, tid, nid, "skip")
     rows = store.node_rows(conn, tid)
+    # A `floor` graph's retro closes only through `close` or `skip_retro`, which re-run it.
     if any(n["id"] == "retro" for n in graph.ready(t, rows)) \
-            and (why := _retro_idle(conn, tid)):
+            and not any(n.get("floor") for n in t["nodes"]) and (why := _retro_idle(conn, tid)):
         store.set_node(conn, tid, "retro", status="done", done_by="wf", evidence=why)
         store.event(conn, tid, "retro", "done", why)
     if not graph.pending(t, store.node_rows(conn, tid)):
@@ -315,6 +360,8 @@ def skip_retro(conn: sqlite3.Connection, task: sqlite3.Row, reason: str) -> None
         raise graph.WfError(i18n.t("checks.skip_again", tid=tid, nodes=nodes))
     t = graph.parse(task["graph"])
     tid = task["id"]
+    if stale := _floor_stale(conn, task, t, "retro"):
+        raise graph.WfError(i18n.t("checks.floor_stale", node="retro", floor=stale))
     why = i18n.t("checks.skipped", reason=reason.strip())
     with conn:
         conn.execute("BEGIN IMMEDIATE")
@@ -385,7 +432,6 @@ def attempt(  # noqa: C901
     t = graph.parse(task["graph"])
     begun = time.monotonic()
     remaining = deadline - begun
-    at = node.get("skill") and graph.skill_at(conn, task, t, node)
     done_by, head = "check", node.get("carry") and _head(task["dir"])
     if carried := _carried(conn, task, node):
         code, tail, done_by, evidence = 0, "", "wf", carried
@@ -400,13 +446,10 @@ def attempt(  # noqa: C901
         code, tail = 124, i18n.t("checks.unrun")
     else:
         try:
-            cmd, values = render(node["check"], json.loads(task["params"]), t["params"])
+            cmd, env = _check_cmd(conn, task, t, node)
         except graph.WfError as exc:
             code, tail = 1, f"[omge:wf] {exc}"
         else:
-            env = {**_env(task, node), **values}
-            if at:  # GitHub's `created_at` format: a receipt must postdate the call
-                env["WF_SKILL_AT"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(at))
             code, tail = run(cmd, task["dir"], env, min(node["timeout"], remaining))
     if code and not tail.strip():  # a silent failure would leave the agent no reason at all
         tail = i18n.t("checks.silent_human" if node.get("kind") == "human" else "checks.silent",

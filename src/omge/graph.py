@@ -146,6 +146,18 @@ def parse(body: str, strict: bool = False) -> dict:  # noqa: C901
         # A receipt for code that has not changed since it passed carries over.
         if "carry" in node and (node["carry"] != "code" or nid == "retro" or not node.get("check")):
             raise WfError(i18n.t("graph.carry_field", nid=nid))
+        # `floor` is a `protected` gate that is never waived and is re-run before anything
+        # after it closes; a cached pass (`carry`) would defeat that.
+        for key in ("protected", "floor"):
+            if type(node.get(key, False)) is not bool:
+                raise WfError(i18n.t("graph.gate_field", nid=nid))
+            if not node.get(key):
+                node.pop(key, None)
+        if node.get("floor"):
+            node["protected"] = True
+        if node.get("protected") and (nid == "retro" or (node.get("floor") and (
+                not node.get("check") or "carry" in node))):
+            raise WfError(i18n.t("graph.gate_field", nid=nid))
         node["timeout"] = int(node.get("timeout", 120))
         node["pitfalls"] = node.get("pitfalls") or []
         seen.append(nid)
@@ -272,7 +284,7 @@ def _check_contract(n: dict) -> tuple:
     or a predecessor it never waited on is too: its receipts predate the new contract."""
     return (n.get("check"), tuple((e.get("to"), e.get("when")) for e in n["next"]),
             n.get("on_fail"), n.get("kind"), n.get("agent"), n.get("agent_mode"),
-            n.get("skill"), n["after"])
+            n.get("skill"), n["after"], n.get("protected"), n.get("floor"))
 
 
 def load(graph: str | dict | list, strict: bool = True) -> dict:
@@ -382,10 +394,10 @@ def ready_since(conn: sqlite3.Connection, task: sqlite3.Row, t: dict, node_id: s
     after = next(n["after"] for n in t["nodes"] if n["id"] == node_id)
     for ts, nid, kind, detail in conn.execute(
             "SELECT ts, node, kind, detail FROM event WHERE task = ?"
-            " AND kind IN ('done', 'waive', 'back', 'revise_change')", (task["id"],)):
+            " AND kind IN ('done', 'waive', 'back', 'reopen', 'revise_change')", (task["id"],)):
         if kind == "revise_change":
             reopened = nid == node_id
-        elif kind == "back":
+        elif kind in ("back", "reopen"):
             reopened = node_id in descendants(t, detail)
         else:
             reopened = nid in after  # a predecessor closing always starts a new ready
@@ -503,7 +515,7 @@ def _shape(n: dict) -> tuple:
     edges = tuple((e["to"], e.get("when"), e["max"]) for e in n["next"])
     return (n.get("check"), edges, tuple(n["after"]), n.get("kind"), n["timeout"],
             n.get("on_fail"), n.get("on_fail_max"), n.get("skill"), n.get("agent"),
-            n.get("agent_mode"), n.get("carry"))
+            n.get("agent_mode"), n.get("carry"), n.get("protected"), n.get("floor"))
 
 
 def revise(conn: sqlite3.Connection, task: sqlite3.Row, graph: str | dict | list,  # noqa: C901
@@ -519,6 +531,13 @@ def revise(conn: sqlite3.Connection, task: sqlite3.Row, graph: str | dict | list
     new = parse(body)
     rows = store.node_rows(conn, task["id"])
     olds, news = {n["id"]: n for n in old["nodes"]}, {n["id"]: n for n in new["nodes"]}
+    # A running task's gate is its snapshot's: a stronger or weaker one comes with a new
+    # task or library type, never by revising this one.
+    for p in [i for i in olds if olds[i].get("protected")]:
+        if p not in news or (_shape(olds[p]), olds[p].get("do")) != (
+                _shape(news[p]), news[p].get("do")) \
+                or not descendants(old, p) <= descendants(new, p):
+            raise WfError(i18n.t("graph.revise_protected", nid=p))
     removed = [i for i in olds if i not in news]
     if held := [i for i in removed if rows[i]["status"] == "pending" and (olds[i].get("check")
                 or olds[i].get("skill") or olds[i].get("agent_mode") == "require")]:
@@ -1210,8 +1229,9 @@ def status_text(conn: sqlite3.Connection, task: sqlite3.Row, listed: bool = True
 
 def _weakened(old: dict, new: dict) -> list[str]:
     """What an update loosens: a node removed, or its check, `next`, `after`, timeout,
-    `skill` or `agent` changed, or it turned human; a param regex changed. Stronger and weaker
-    cannot be told apart mechanically, so every such change counts and needs a reason."""
+    `skill`, `agent`, `protected` or `floor` changed, or it turned human; a param regex changed.
+    Stronger and weaker cannot be told apart mechanically, so every such change counts and
+    needs a reason."""
     news = {n["id"]: n for n in new["nodes"]}
     out = []
     for n in old["nodes"]:
@@ -1221,7 +1241,8 @@ def _weakened(old: dict, new: dict) -> list[str]:
         if m is None or _shape(n)[:3] != _shape(m)[:3] or m["timeout"] != n["timeout"] \
                 or (m.get("kind") == "human" and n.get("kind") != "human") \
                 or m.get("skill") != n.get("skill") or m.get("agent") != n.get("agent") \
-                or m.get("agent_mode") != n.get("agent_mode"):
+                or m.get("agent_mode") != n.get("agent_mode") \
+                or (m.get("protected"), m.get("floor")) != (n.get("protected"), n.get("floor")):
             out.append(n["id"])
     if old.get("optional_issue", False) != new.get("optional_issue", False):
         out.append("optional_issue")
@@ -1410,7 +1431,8 @@ def _protected_changes(old: dict, new: dict) -> list[str]:
         if n["id"] == "retro":
             continue
         m = news.get(n["id"])
-        fields = ("do", "check", "skill", "kind", "timeout", "on_fail", "on_fail_max", "next")
+        fields = ("do", "check", "skill", "kind", "timeout", "on_fail", "on_fail_max", "next",
+                  "protected", "floor")
         if n.get("agent_mode") == "require":
             fields += ("agent", "agent_mode")
         if m is None or any(m.get(k) != n.get(k) for k in fields) or (

@@ -7,6 +7,12 @@ EN: dict[str, str] = {
     "checks.no_dir": "[omge:wf] no dir: {cwd} — if the user moved it, wf_set(issue_url, 'dir', <path>)",
     "checks.review_blocking": ("the reviewer's latest verdict is blocking — fix those findings"
                                " and get reviewed again, or `wf_drop`"),
+    "checks.protected_waive": ("`{node}` is a protected gate — a waiver needs an independent"
+                               " reviewer's pass for the current HEAD (its reply ends"
+                               " `Verdict: pass` then `Reviewed SHA: <HEAD>`)"),
+    "checks.floor_waive": "`{node}` is a floor gate — it cannot be waived; pass its check or `wf_drop`",
+    "checks.floor_stale": ("floor gate `{floor}` has not passed now (a failing one is reopened with"
+                           " everything after it) — `{node}` cannot close until it passes"),
     "checks.no_when": "`{node}`: no `next` when matches — completion refused, staying on the node",
     "checks.branch_route": ("`{node}` is a branch node — waive it with a destination:"
                             " `wf_waive({node}>{to}, <reason>)` ({options})"),
@@ -55,6 +61,11 @@ KO: dict[str, str] = {
     "checks.param_mismatch": "param `{name}`={value} 가 {pattern} 에 맞지 않는다",
     "checks.no_dir": "[omge:wf] dir 없음: {cwd} — 사용자가 옮겼다면 wf_set(issue_url, 'dir', <경로>)",
     "checks.review_blocking": "리뷰어의 최신 판정이 blocking 이다 — 그 지적을 고치고 다시 리뷰받거나 `wf_drop`",
+    "checks.protected_waive": ("`{node}` 는 보호 게이트다 — 면제하려면 현재 HEAD 에 대한 독립 리뷰어의 pass"
+                               " 가 필요하다 (응답 끝 `Verdict: pass`, `Reviewed SHA: <HEAD>`)"),
+    "checks.floor_waive": "`{node}` 는 floor 게이트다 — 면제할 수 없다. check 를 통과하거나 `wf_drop`",
+    "checks.floor_stale": ("floor 게이트 `{floor}` 가 지금 통과한 상태가 아니다 (실패하면 그 뒤까지 다시"
+                           " 연다) — 통과하기 전에는 `{node}` 를 닫을 수 없다"),
     "checks.no_when": "`{node}`: 어느 `next` 의 when 도 맞지 않는다 — 완료 거부, 노드에 머문다",
     "checks.branch_route": ("`{node}` 는 갈래 노드다 — 갈 곳을 정해 면제하라:"
                             " `wf_waive({node}>{to}, <사유>)` ({options})"),

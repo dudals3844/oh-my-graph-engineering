@@ -247,7 +247,8 @@ def wf_retro(issue_url: str | None = None, task: int | None = None,
 def wf_waive(node: str, reason: str, issue_url: str | None = None, task: int | None = None) -> str:
     """Waive a pending node. `reason` is required. A decision node names its route as
     `node>route`. Succeeds only after an independent reviewer (any subagent launched with
-    the Agent tool, not a fork) was called since the node became ready."""
+    the Agent tool, not a fork) was called since the node became ready. A `protected` node
+    also needs that reviewer's pass for the current HEAD; a `floor` node is never waived."""
     if not reason.strip():
         raise graph_.WfError(i18n.t("server.waive_reason"))
     node_id, _, route = node.partition(">")
