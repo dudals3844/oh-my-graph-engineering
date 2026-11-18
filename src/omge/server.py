@@ -9,6 +9,7 @@ from __future__ import annotations
 import functools
 import json
 import sqlite3
+import traceback
 from pathlib import Path
 
 from mcp.server.mcpserver import MCPServer
@@ -28,9 +29,7 @@ RETRO_EVIDENCE_MAX = 8000
 
 
 def _tool(fn):
-    """Register `fn`, turning a `WfError` into a `ToolError`. mcp 2.x hides the text
-    of any other exception from the client, and a refusal the agent cannot read
-    (which node, which check output) is useless."""
+    """Register `fn`, keeping workflow refusals and unexpected failures visible to the agent."""
 
     @functools.wraps(fn)
     def wrapper(*args, **kwargs):
@@ -38,6 +37,9 @@ def _tool(fn):
             return fn(*args, **kwargs)
         except graph_.WfError as exc:
             raise ToolError(str(exc)) from exc
+        except Exception as exc:
+            traceback.print_exc()
+            raise ToolError(f"{type(exc).__name__}: {exc}") from exc
 
     return mcp.tool()(wrapper)
 
