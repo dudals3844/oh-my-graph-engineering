@@ -7,7 +7,9 @@ import os
 import sqlite3
 import stat
 import subprocess
+import sys
 import time
+from contextlib import closing
 from pathlib import Path
 
 import pytest
@@ -173,6 +175,36 @@ def test_a_numeric_regex_keeps_code_out_of_bash_arithmetic(tmp_path):
     assert not (tmp_path / "marker").exists()
 
 
+def test_overlapping_connections_keep_wal_locked(monkeypatch):
+    child = """
+from contextlib import closing
+from omge import store
+
+with closing(store.connect()) as conn:
+    conn.execute("INSERT INTO repro VALUES (2)")
+"""
+    opened = []
+    original_open = os.open
+
+    def record_open(path, *args, **kwargs):
+        fd = original_open(path, *args, **kwargs)
+        if path == Path(os.environ["WF_DB"]):
+            opened.append(path)
+        return fd
+
+    with closing(store.connect()) as first:
+        monkeypatch.setattr(os, "open", record_open)
+        first.execute("CREATE TABLE repro (value INTEGER)")
+        first.execute("INSERT INTO repro VALUES (1)")
+        for count in (1, 3):
+            with closing(store.connect()) as second:
+                assert second.execute("SELECT count(*) FROM repro").fetchone()[0] == count
+                subprocess.run([sys.executable, "-c", child], check=True, timeout=10)
+                assert first.execute("SELECT count(*) FROM repro").fetchone()[0] == count + 1
+                first.execute("INSERT INTO repro VALUES (3)")
+    assert not opened  # SQLite versions that recover still must not reopen the DB outside SQLite.
+
+
 def test_state_is_owner_only_under_umask_022(workflows, repo, tmp_path, monkeypatch):
     from omge import library, server
 
@@ -181,16 +213,18 @@ def test_state_is_owner_only_under_umask_022(workflows, repo, tmp_path, monkeypa
     monkeypatch.setenv("WF_DB", str(db))
     old = os.umask(0o022)
     try:
-        tid = graph.start(store.connect(), "demo", repo, None, {}, title="t")
-        out = server.mcp._tool_manager._tools["wf_retro"].fn(task=tid)
-        lib = library.root()
+        with closing(store.connect()) as conn:
+            tid = graph.start(conn, "demo", repo, None, {}, title="t")
+            out = server.mcp._tool_manager._tools["wf_retro"].fn(task=tid)
+            lib = library.root()
+            retro = next((db.parent / "retro").iterdir())
+            assert str(retro) in out
+            private = {db.parent: 0o700, db.parent / "retro": 0o700, lib: 0o700,
+                       db: 0o600, db.parent / "wf.db-wal": 0o600,
+                       db.parent / "wf.db-shm": 0o600, retro: 0o600}
+            assert {p: stat.S_IMODE(p.stat().st_mode) for p in private} == private
     finally:
         os.umask(old)
-    retro = next((db.parent / "retro").iterdir())
-    assert str(retro) in out
-    private = {db.parent: 0o700, db.parent / "retro": 0o700, lib: 0o700,
-               db: 0o600, db.parent / "wf.db-wal": 0o600, retro: 0o600}
-    assert {p: stat.S_IMODE(p.stat().st_mode) for p in private} == private
 
 
 def test_run_timeout_kills_the_whole_process_group(tmp_path):

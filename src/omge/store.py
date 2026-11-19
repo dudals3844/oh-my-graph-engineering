@@ -16,6 +16,7 @@ import sqlite3
 import subprocess
 import time
 from pathlib import Path
+from threading import Lock
 
 from .i18n import t
 
@@ -33,6 +34,7 @@ GRANT_SLACK = 60
 #: one-open-task index and every lookup work unchanged.
 NO_ISSUE = "task:"
 SCHEMA_VERSION = 3
+_DB_CREATE_LOCK = Lock()
 
 _SCHEMA = f"""
 CREATE TABLE IF NOT EXISTS task (
@@ -190,16 +192,26 @@ def write_private(path: Path, text: str) -> None:
 def connect() -> sqlite3.Connection:
     path = Path(os.environ.get("WF_DB") or Path.home() / ".local/share/omge/wf.db")
     private_dir(path.parent)
-    # SQLite gives -wal/-shm the main file's mode.
-    os.close(os.open(path, os.O_CREAT | os.O_RDWR, 0o600))
+    # SQLite inherits the mode for -wal/-shm. Never open an existing DB here:
+    # closing any fd for it releases this process's SQLite POSIX locks.
+    # Serialize the first open/close so a peer thread cannot connect in between.
+    with _DB_CREATE_LOCK:
+        try:
+            os.close(os.open(path, os.O_CREAT | os.O_EXCL | os.O_RDWR, 0o600))
+        except FileExistsError:
+            pass
     path.chmod(0o600)
     # Autocommit: every write here is a single statement or an explicit
     # `with conn:` block, and an implicit open transaction would hold the write
     # lock across a multi-minute check run.
     conn = sqlite3.connect(path, timeout=30, isolation_level=None)
     conn.row_factory = sqlite3.Row
-    conn.execute("PRAGMA journal_mode=WAL")
-    _migrate(conn)
+    try:
+        conn.execute("PRAGMA journal_mode=WAL")
+        _migrate(conn)
+    except BaseException:
+        conn.close()
+        raise
     return conn
 
 
