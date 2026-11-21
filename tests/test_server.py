@@ -9,6 +9,37 @@ from omge import graph, server, store
 from tests.conftest import start
 
 
+def test_wf_start_accepts_yaml_graph_comments(repo):
+    result = asyncio.run(server.mcp.call_tool("wf_start", {
+        "type": "new", "dir": repo, "title": "commented graph", "new_reason": "regression",
+        "graph": """\
+# The graph starts here.
+nodes: # Workflow steps
+  # Keep the literal hashes in the values below.
+  - id: verify # A checked step
+    do: "Open #12, then verify" # Display text
+    check: |- # Shell command follows
+      # Keep this line in the command.
+      test -f "#marker"
+    on_fail: retry # Retry the check
+# The graph ends here.
+""",
+    }))
+    assert "task #1" in result.content[0].text
+    with closing(store.connect()) as conn:
+        node = graph.parse(store.get_task(conn, 1)["graph"])["nodes"][0]
+    assert node["do"] == "Open #12, then verify"
+    assert node["check"] == '# Keep this line in the command.\ntest -f "#marker"'
+
+
+def test_wf_start_refuses_an_ambiguous_plain_check(repo):
+    with pytest.raises(ToolError, match="YAML cut everything after `#`"):
+        asyncio.run(server.mcp.call_tool("wf_start", {
+            "type": "new", "dir": repo, "title": "ambiguous check", "new_reason": "regression",
+            "graph": "nodes:\n  - id: verify\n    check: test -f .ok #marker\n    on_fail: retry\n",
+        }))
+
+
 def test_wf_status_surfaces_unexpected_errors(workflows, repo, monkeypatch, capsys):
     task = start(repo)
 
