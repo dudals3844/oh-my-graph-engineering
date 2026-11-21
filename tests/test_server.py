@@ -32,11 +32,16 @@ nodes: # Workflow steps
     assert node["check"] == '# Keep this line in the command.\ntest -f "#marker"'
 
 
-def test_wf_start_refuses_an_ambiguous_plain_check(repo):
+@pytest.mark.parametrize("body", [
+    "    check: test -f .ok #marker\n",
+    "    do: #12 must be checked\n    check: test -f .ok\n",
+    "    check: #marker\n      test -f .ok\n",
+])
+def test_wf_start_refuses_ambiguous_plain_text(repo, body):
     with pytest.raises(ToolError, match="YAML cut everything after `#`"):
         asyncio.run(server.mcp.call_tool("wf_start", {
             "type": "new", "dir": repo, "title": "ambiguous check", "new_reason": "regression",
-            "graph": "nodes:\n  - id: verify\n    check: test -f .ok #marker\n    on_fail: retry\n",
+            "graph": f"nodes:\n  - id: verify\n{body}    on_fail: retry\n",
         }))
 
 

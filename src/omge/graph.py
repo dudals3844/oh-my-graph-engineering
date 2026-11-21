@@ -280,6 +280,7 @@ def _reject_ambiguous_comments(node: yaml.Node | None, source: str) -> None:
                   "agent", "agent_mode", "skill", "carry", "floor", "protected", "auto_after",
                   "optional_issue", "type"}
     comment = re.compile(r"[ \t]+#")
+    comment_after_key = re.compile(r"[ \t]*:[ \t]+#")
     seen = set()
 
     def visit(node: yaml.Node, field: str = "") -> None:
@@ -289,11 +290,16 @@ def _reject_ambiguous_comments(node: yaml.Node | None, source: str) -> None:
         if isinstance(node, yaml.MappingNode):
             for key, value in node.value:
                 child_field = key.value if isinstance(key, yaml.ScalarNode) else ""
-                visit(value, "params" if field == "params" else child_field)
+                child_field = "params" if field == "params" else child_field
+                if (isinstance(value, yaml.ScalarNode) and value.style is None
+                        and child_field not in structural
+                        and comment_after_key.match(source, key.end_mark.index)):
+                    raise WfError(i18n.t("graph.yaml_comment"))
+                visit(value, child_field)
         elif isinstance(node, yaml.SequenceNode):
             for value in node.value:
                 visit(value, field)
-        elif (node.style is None and node.value and field not in structural
+        elif (node.style is None and field not in structural
               and comment.match(source, node.end_mark.index)):
             raise WfError(i18n.t("graph.yaml_comment"))
 
