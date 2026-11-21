@@ -202,18 +202,6 @@ def _trivial(shell: object) -> bool:
     return norm in TRIVIAL or bool(ECHO_ONLY.fullmatch(norm))
 
 
-def _strings(x: object):
-    if isinstance(x, str):
-        yield x
-    elif isinstance(x, dict):
-        for k, v in x.items():
-            yield from _strings(k)
-            yield from _strings(v)
-    elif isinstance(x, list):
-        for v in x:
-            yield from _strings(v)
-
-
 def _apply_node(by_id: dict, order: list, nid: object, fields: object) -> None:
     if not isinstance(nid, str) or not nid:
         raise WfError(f"node id {nid!r} is malformed or duplicated")
@@ -287,19 +275,53 @@ def _check_contract(n: dict) -> tuple:
             n.get("skill"), n["after"], n.get("protected"), n.get("floor"))
 
 
-def load(graph: str | dict | list, strict: bool = True) -> dict:
-    """An agent-submitted graph: a JSON object (or bare node list), or a YAML string.
+def _reject_ambiguous_comments(node: yaml.Node | None, source: str) -> None:  # noqa: C901
+    structural = {"id", "after", "to", "on_fail", "kind", "timeout", "on_fail_max", "max",
+                  "agent", "agent_mode", "skill", "carry", "floor", "protected", "auto_after",
+                  "optional_issue", "type", "nodes", "next", "params"}
+    comment = re.compile(r"[ \t]+#")
+    leading = set()
+    previous = None
+    for token in yaml.scan(source, Loader=yaml.SafeLoader):
+        if (isinstance(previous, (yaml.ValueToken, yaml.BlockEntryToken))
+                and comment.match(source, previous.end_mark.index)):
+            leading.add(token.start_mark.index)
+        previous = token
+    seen = set()
 
-    YAML silently drops everything after an unquoted ` #` (`do: ... #1.` lost the
-    rest of the line), so a string whose `#`s do not all survive the load is refused.
-    """
+    def visit(node: yaml.Node, field: str = "", in_params: bool = False) -> None:
+        if isinstance(node, yaml.ScalarNode):
+            if (node.style is None and (in_params or field not in structural)
+                    and not (field == "pitfalls" and node.tag == "tag:yaml.org,2002:null")
+                    and (node.start_mark.index in leading
+                         or comment.match(source, node.end_mark.index))):
+                raise WfError(i18n.t("graph.yaml_comment"))
+            return
+        in_params = in_params or field == "params"
+        if (node, field, in_params) in seen:
+            return
+        seen.add((node, field, in_params))
+        if isinstance(node, yaml.MappingNode):
+            for key, value in node.value:
+                child = key.value if not in_params and isinstance(key, yaml.ScalarNode) else ""
+                visit(value, child, in_params)
+        elif isinstance(node, yaml.SequenceNode):
+            for value in node.value:
+                visit(value, "" if field == "pitfalls" else field, in_params)
+
+    if node is not None:
+        visit(node)
+
+
+def load(graph: str | dict | list, strict: bool = True) -> dict:
+    """Load a submitted graph, refusing comments that may truncate plain free text."""
     if isinstance(graph, str):
         try:
             loaded = yaml.safe_load(graph)
+            if strict and "#" in graph:
+                _reject_ambiguous_comments(yaml.compose(graph, Loader=yaml.SafeLoader), graph)
         except yaml.YAMLError as exc:
             raise WfError(i18n.t("graph.yaml_unreadable", exc=exc)) from None
-        if strict and graph.count("#") != sum(v.count("#") for v in _strings(loaded)):
-            raise WfError(i18n.t("graph.yaml_comment"))
         graph = loaded
     if isinstance(graph, list):
         graph = {"nodes": graph}
