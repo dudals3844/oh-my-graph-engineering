@@ -278,30 +278,29 @@ def _check_contract(n: dict) -> tuple:
 def _reject_ambiguous_comments(node: yaml.Node | None, source: str) -> None:
     structural = {"id", "after", "to", "on_fail", "kind", "timeout", "on_fail_max", "max",
                   "agent", "agent_mode", "skill", "carry", "floor", "protected", "auto_after",
-                  "optional_issue", "type"}
+                  "optional_issue", "type", "nodes", "next", "params"}
     comment = re.compile(r"[ \t]+#")
     comment_after_key = re.compile(r"[ \t]*:[ \t]+#")
     seen = set()
 
-    def visit(node: yaml.Node, field: str = "") -> None:
+    def visit(node: yaml.Node, field: str = "", key_end: int | None = None) -> None:
+        if isinstance(node, yaml.ScalarNode):
+            if (node.style is None and field not in structural
+                    and not (field == "pitfalls" and node.tag == "tag:yaml.org,2002:null")
+                    and (comment.match(source, node.end_mark.index)
+                         or (key_end is not None and comment_after_key.match(source, key_end)))):
+                raise WfError(i18n.t("graph.yaml_comment"))
+            return
         if (node, field) in seen:
             return
         seen.add((node, field))
         if isinstance(node, yaml.MappingNode):
             for key, value in node.value:
-                child_field = key.value if isinstance(key, yaml.ScalarNode) else ""
-                child_field = "params" if field == "params" else child_field
-                if (isinstance(value, yaml.ScalarNode) and value.style is None
-                        and child_field not in structural
-                        and comment_after_key.match(source, key.end_mark.index)):
-                    raise WfError(i18n.t("graph.yaml_comment"))
-                visit(value, child_field)
+                child = key.value if field != "params" and isinstance(key, yaml.ScalarNode) else ""
+                visit(value, child, key.end_mark.index)
         elif isinstance(node, yaml.SequenceNode):
             for value in node.value:
                 visit(value, field)
-        elif (node.style is None and field not in structural
-              and comment.match(source, node.end_mark.index)):
-            raise WfError(i18n.t("graph.yaml_comment"))
 
     if node is not None:
         visit(node)

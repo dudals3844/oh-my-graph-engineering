@@ -14,6 +14,7 @@ def test_wf_start_accepts_yaml_graph_comments(repo):
         "type": "new", "dir": repo, "title": "commented graph", "new_reason": "regression",
         "graph": """\
 # The graph starts here.
+params: null # No parameters
 nodes: # Workflow steps
   # Keep the literal hashes in the values below.
   - id: verify # A checked step
@@ -22,6 +23,8 @@ nodes: # Workflow steps
       # Keep this line in the command.
       test -f "#marker"
     on_fail: retry # Retry the check
+    next: # No conditional routes
+    pitfalls: null # No pitfalls
 # The graph ends here.
 """,
     }))
