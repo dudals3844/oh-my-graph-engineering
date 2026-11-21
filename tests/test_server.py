@@ -40,6 +40,7 @@ nodes: # Workflow steps
     "    do: #12 must be checked\n    check: test -f .ok\n",
     "    check: #marker\n      test -f .ok\n",
     "    check: test -f .ok\n    pitfalls:\n      - #12 must not happen\n        Verify first\n",
+    "    check: test -f .ok\n    pitfalls:\n      - #12 must not happen\n",
 ])
 def test_wf_start_refuses_ambiguous_plain_text(repo, body):
     with pytest.raises(ToolError, match="YAML cut everything after `#`"):

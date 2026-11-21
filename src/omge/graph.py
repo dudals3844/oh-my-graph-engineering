@@ -307,7 +307,7 @@ def _reject_ambiguous_comments(node: yaml.Node | None, source: str) -> None:  # 
                 visit(value, child, in_params)
         elif isinstance(node, yaml.SequenceNode):
             for value in node.value:
-                visit(value, field, in_params)
+                visit(value, "" if field == "pitfalls" else field, in_params)
 
     if node is not None:
         visit(node)
