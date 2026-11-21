@@ -275,32 +275,39 @@ def _check_contract(n: dict) -> tuple:
             n.get("skill"), n["after"], n.get("protected"), n.get("floor"))
 
 
-def _reject_ambiguous_comments(node: yaml.Node | None, source: str) -> None:
+def _reject_ambiguous_comments(node: yaml.Node | None, source: str) -> None:  # noqa: C901
     structural = {"id", "after", "to", "on_fail", "kind", "timeout", "on_fail_max", "max",
                   "agent", "agent_mode", "skill", "carry", "floor", "protected", "auto_after",
                   "optional_issue", "type", "nodes", "next", "params"}
     comment = re.compile(r"[ \t]+#")
-    comment_after_key = re.compile(r"[ \t]*:[ \t]+#")
+    leading = set()
+    previous = None
+    for token in yaml.scan(source, Loader=yaml.SafeLoader):
+        if (isinstance(previous, (yaml.ValueToken, yaml.BlockEntryToken))
+                and comment.match(source, previous.end_mark.index)):
+            leading.add(token.start_mark.index)
+        previous = token
     seen = set()
 
-    def visit(node: yaml.Node, field: str = "", key_end: int | None = None) -> None:
+    def visit(node: yaml.Node, field: str = "", in_params: bool = False) -> None:
         if isinstance(node, yaml.ScalarNode):
-            if (node.style is None and field not in structural
+            if (node.style is None and (in_params or field not in structural)
                     and not (field == "pitfalls" and node.tag == "tag:yaml.org,2002:null")
-                    and (comment.match(source, node.end_mark.index)
-                         or (key_end is not None and comment_after_key.match(source, key_end)))):
+                    and (node.start_mark.index in leading
+                         or comment.match(source, node.end_mark.index))):
                 raise WfError(i18n.t("graph.yaml_comment"))
             return
-        if (node, field) in seen:
+        in_params = in_params or field == "params"
+        if (node, field, in_params) in seen:
             return
-        seen.add((node, field))
+        seen.add((node, field, in_params))
         if isinstance(node, yaml.MappingNode):
             for key, value in node.value:
-                child = key.value if field != "params" and isinstance(key, yaml.ScalarNode) else ""
-                visit(value, child, key.end_mark.index)
+                child = key.value if not in_params and isinstance(key, yaml.ScalarNode) else ""
+                visit(value, child, in_params)
         elif isinstance(node, yaml.SequenceNode):
             for value in node.value:
-                visit(value, field)
+                visit(value, field, in_params)
 
     if node is not None:
         visit(node)

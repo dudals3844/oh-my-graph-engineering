@@ -39,6 +39,7 @@ nodes: # Workflow steps
     "    check: test -f .ok #marker\n",
     "    do: #12 must be checked\n    check: test -f .ok\n",
     "    check: #marker\n      test -f .ok\n",
+    "    check: test -f .ok\n    pitfalls:\n      - #12 must not happen\n        Verify first\n",
 ])
 def test_wf_start_refuses_ambiguous_plain_text(repo, body):
     with pytest.raises(ToolError, match="YAML cut everything after `#`"):
@@ -84,3 +85,20 @@ def test_wf_status_closes_connection(workflows, repo, monkeypatch, fail):
             server.mcp._tool_manager._tools["wf_status"].fn(task=task)
         with pytest.raises(sqlite3.ProgrammingError, match="closed database"):
             conn.execute("SELECT 1")
+
+
+def test_wf_start_refuses_ambiguous_merged_parameter(repo):
+    with pytest.raises(ToolError, match="YAML cut everything after `#`"):
+        asyncio.run(server.mcp.call_tool("wf_start", {
+            "type": "new", "dir": repo, "title": "merged regex", "new_reason": "regression",
+            "graph": """\
+defaults: &defaults
+  id: ^release #42$
+params:
+  <<: *defaults
+nodes:
+  - id: verify
+    check: test -f .ok
+    on_fail: retry
+""",
+        }))
