@@ -20,7 +20,7 @@ EN: dict[str, str] = {
     "library.type_header": "Type {type}: {n} past tasks",
     "library.node_avg": " · avg {secs:.0f}s",
     "library.node_line": "- {node}: failed {failed}/{tried}{avg} · waived {waived} · skip {skipped}"
-                         " · back {back} · revised {revised} · wf_fail {wf_fail}",
+                         " · back {back} · revised {revised} · wf_fail calls {wf_fail}",
     "library.s_retry": "`{node}` (on_fail: retry) failed {n} times — add an edge back to an"
                        " earlier node (on_fail: <earlier node>)",
     "library.s_waived": "`{node}` waived in {n}/{total} tasks — removal candidate",
@@ -66,7 +66,7 @@ KO: dict[str, str] = {
     "library.type_header": "유형 {type}: 과거 task {n}건",
     "library.node_avg": " · 평균 {secs:.0f}s",
     "library.node_line": "- {node}: 실패 {failed}/{tried}{avg} · 면제 {waived} · skip {skipped}"
-                         " · 되돌아감 {back} · 수정 {revised} · wf_fail {wf_fail}",
+                         " · 되돌아감 {back} · 수정 {revised} · wf_fail 호출 {wf_fail}",
     "library.s_retry": "`{node}` (on_fail: retry) 가 {n}회 실패"
                        " — 앞 노드로 되돌아가는 간선(on_fail: <앞 노드>) 추가",
     "library.s_waived": "`{node}` 가 {n}/{total} task 에서 면제 — 제거 후보",

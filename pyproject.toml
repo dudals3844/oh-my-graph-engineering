@@ -1,6 +1,6 @@
 [project]
 name = "omge"
-version = "0.1.1"
+version = "0.1.2"
 description = "Graph-enforced workflows for Claude Code"
 readme = "README.md"
 license = "MIT"

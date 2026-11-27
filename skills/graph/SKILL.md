@@ -35,7 +35,7 @@ nodes:
       grep -qx 'Verdict: pass' {review} && grep -qx "Reviewed SHA: $(git rev-parse HEAD)" {review}
   - id: retro
     after: [review]
-    do: Call wf_retro() and record a verdict.
+    do: Call wf_retro(), then record wf_retro(verdict=...) (verdict="skip" if nothing to improve).
 ```
 
 A `retro` node is required and must be last (only `kind: human` nodes may follow it); it takes no

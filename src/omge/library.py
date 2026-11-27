@@ -25,7 +25,7 @@ from pathlib import Path
 import yaml
 
 from . import store
-from .i18n import t
+from .i18n import EN, t, variants
 from .store import WfError
 
 WORKFLOWS = Path(__file__).parent / "workflows"
@@ -375,14 +375,25 @@ def conformance(conn: sqlite3.Connection, task: sqlite3.Row
     return fit / len(steps), 1 - len(unused) / len(tmpl), unused
 
 
+def _detail(e: sqlite3.Row) -> str:
+    """A `fail`'s detail with an unset-param error read the same in every language."""
+    if e["kind"] == "fail":
+        for v in variants("checks.param_unset"):
+            pattern = re.escape(f"[omge:wf] {v}").replace(r"\{name\}", "(.+)")
+            if m := re.fullmatch(pattern, e["detail"]):
+                return "[omge:wf] " + EN["checks.param_unset"].format(name=m[1])
+    return e["detail"]
+
+
 def _tally(events: list) -> tuple[dict, Counter, Counter, dict]:
     """(kind, node, detail) -> task ids; (kind, node) counts; per-detail counts; seconds."""
     by = defaultdict(set)
     count, times, secs = Counter(), Counter(), defaultdict(list)
     for e in events:
-        by[e["kind"], e["node"], e["detail"]].add(e["task"])
+        detail = _detail(e)
+        by[e["kind"], e["node"], detail].add(e["task"])
         count[e["kind"], e["node"]] += 1
-        times[e["kind"], e["node"], e["detail"]] += 1
+        times[e["kind"], e["node"], detail] += 1
         if e["seconds"] is not None:
             secs[e["node"]].append(e["seconds"])
     return by, count, times, secs

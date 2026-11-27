@@ -453,7 +453,7 @@ def attempt(  # noqa: C901
             code, tail = run(cmd, task["dir"], env, min(node["timeout"], remaining))
     if code and not tail.strip():  # a silent failure would leave the agent no reason at all
         tail = i18n.t("checks.silent_human" if node.get("kind") == "human" else "checks.silent",
-                      code=code)
+                      code=code, check=(node.get("check") or "").strip()[:200])
     if code == 0:
         try:
             close(conn, task, node["id"], status="done", done_by=done_by, evidence=evidence,

@@ -95,5 +95,5 @@ nodes:
   - id: retro
     after: [deliver]
     do: >-
-      Call wf_retro() for this type's accumulated evidence and suggestions, then record a verdict
-      (no_change|update_type|new_type). wf supplies the check.
+      Call wf_retro() for this type's accumulated evidence and suggestions, then record
+      wf_retro(verdict=no_change|update_type|new_type|skip; nothing to improve: skip with a reason). wf supplies the check.
