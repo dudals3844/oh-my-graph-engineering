@@ -342,6 +342,15 @@ def test_a_silent_failing_check_still_gets_a_reason(workflows, repo):
     assert "ask the user" not in store.node_rows(conn, tid)["a"]["last_output_tail"]
 
 
+def test_a_silent_failure_names_the_check_that_failed(workflows, repo):
+    tid = start(repo)
+    conn = store.connect()
+    task = store.get_task(conn, tid)
+    n = next(x for x in graph.parse(task["graph"])["nodes"] if x["id"] == "a")
+    _, tail = checks.attempt(conn, task, n, time.monotonic() + 30)
+    assert "test -f a.ok" in tail
+
+
 def test_the_agent_skips_a_ready_retro_with_a_reason_and_records_no_retro(workflows, repo):
     tid = start(repo)
     conn = store.connect()

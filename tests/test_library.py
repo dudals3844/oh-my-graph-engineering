@@ -8,7 +8,7 @@ import time
 
 import pytest
 
-from omge import graph, library, store
+from omge import graph, i18n, library, store
 
 from .conftest import ISSUE, close, reviewed_retro, start
 
@@ -308,7 +308,7 @@ def test_repeated_loops_in_one_task_and_wf_fail_counts(workflows):
         store.event(conn, t1, "b", "back", "a")
     store.event(conn, t1, "a", "fail", "x")
     text = library.evidence(conn, "demo")
-    assert "· back 1 · revised 0 · wf_fail 3" in text
+    assert "· back 1 · revised 0 · wf_fail calls 3" in text
     assert "`b` → `a` went back 3 times in 1 tasks — add a check before `a`" in text
     assert "(on_fail: retry)" not in text  # one failure is not a pattern
 
@@ -631,3 +631,12 @@ def test_git_identity_is_not_reported_as_a_workflow_node(workflows, repo):
     assert "- @git:" not in text
     assert conn.execute("SELECT COUNT(*) FROM event WHERE task = ? AND kind = 'git_identity'",
                         (tid,)).fetchone()[0] == 1
+
+
+def test_the_same_error_in_every_language_counts_as_one_failure(workflows):
+    conn = store.connect()
+    for lang in ("en", "ko"):
+        t = _task(conn)
+        msg = i18n.CATALOGS[lang]["checks.param_unset"].format(name="x")
+        store.event(conn, t, "a", "fail", f"[omge:wf] {msg}")
+    assert "`a`: same failure in 2 tasks" in library.evidence(conn, "demo")

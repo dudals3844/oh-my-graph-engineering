@@ -40,10 +40,10 @@ EN: dict[str, str] = {
     "checks.fail_back": "`{node}` failed → redo from `{to}` ({count}/{limit})",
     "checks.no_retro": ("[omge:wf] no wf_retro record — call wf_retro first"
                         " (if there is nothing to improve, wf_retro(verdict=\"skip\", reason=...))"),
-    "checks.silent_human": ("[omge:wf] the check failed with no output (exit={code}) — this node waits"
+    "checks.silent_human": ("[omge:wf] the check failed with no output (exit={code}; check: {check}) — this node waits"
                             " on a human decision (a merge, etc.). Do not repeat wf_complete;"
                             " ask the user and wait"),
-    "checks.silent": "[omge:wf] the check failed with no output (exit={code}) — re-read this node's `do`",
+    "checks.silent": "[omge:wf] the check failed with no output (exit={code}; check: {check}) — re-read this node's `do`",
     "checks.carried": "code unchanged — pass carried over from {sha}",
     "checks.no_skill": ("[omge:wf] no record of a call to skill `{skills}` — if you only applied its"
                         " criteria, report that; this node requires the skill to run and does"
@@ -89,9 +89,9 @@ KO: dict[str, str] = {
     "checks.fail_back": "`{node}` 실패 → `{to}` 부터 다시 ({count}/{limit}회)",
     "checks.no_retro": ("[omge:wf] wf_retro 기록이 없다 — wf_retro 를 먼저 호출하라"
                         " (개선할 것이 없으면 wf_retro(verdict=\"skip\", reason=...))"),
-    "checks.silent_human": ("[omge:wf] check 가 출력 없이 실패했다 (exit={code}) — 이 노드는 사람의 결정(머지 등)을"
+    "checks.silent_human": ("[omge:wf] check 가 출력 없이 실패했다 (exit={code}; check: {check}) — 이 노드는 사람의 결정(머지 등)을"
                             " 기다린다. wf_complete 를 반복하지 말고 사용자에게 묻고 기다려라"),
-    "checks.silent": "[omge:wf] check 가 출력 없이 실패했다 (exit={code}) — 이 노드의 `do` 를 다시 읽어라",
+    "checks.silent": "[omge:wf] check 가 출력 없이 실패했다 (exit={code}; check: {check}) — 이 노드의 `do` 를 다시 읽어라",
     "checks.carried": "코드 동일 — {sha} 통과 이월",
     "checks.no_skill": ("[omge:wf] 스킬 `{skills}` 호출 기록이 없다 — 기준만 적용했으면 그렇게 보고하고,"
                         " 스킬 실행이 필수인 노드라 `wf_waive` 하지 않는 한 닫히지 않는다"),

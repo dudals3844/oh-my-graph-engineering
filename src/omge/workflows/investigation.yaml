@@ -89,5 +89,5 @@ nodes:
   - id: retro
     after: [report]
     do: >-
-      Call wf_retro() for this type's accumulated evidence and suggestions, then record a verdict
-      (with no issue, the record is the retro). wf supplies the check.
+      Call wf_retro() for this type's accumulated evidence and suggestions, then record
+      wf_retro(verdict=...|skip; nothing to improve: skip with a reason) (with no issue, the record is the retro). wf supplies the check.

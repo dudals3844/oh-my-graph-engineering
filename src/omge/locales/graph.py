@@ -2,10 +2,10 @@
 
 EN: dict[str, str] = {
     "graph.new_match": "agent-submitted graph — the retro saves it to the library as new_type",
-    "graph.retro_do": ("Call wf_retro() for the type's accumulated evidence and proposals, record a"
-                       " verdict (no_change|update_type|new_type), and if there is an issue leave a"
-                       " comment starting with `wf retro` (with the library diff). If there is"
-                       " nothing to improve, skip with wf_retro(verdict=\"skip\", reason=<why>)."),
+    "graph.retro_do": ("Call wf_retro() for the type's accumulated evidence and proposals, then record"
+                       " wf_retro(verdict=no_change|update_type|new_type|skip). Nothing to improve:"
+                       " wf_retro(verdict=\"skip\", reason=<why>). If there is an issue, leave a"
+                       " comment starting with `wf retro` (with the library diff)."),
     "graph.legend": "✔ done ▶ ready · pending ⊘ skipped ⏸ waiting (external) ↺ back ✗ on fail",
     "graph.legend_box": " ⛔ stall 🔧 skill ┆=folded",
     "graph.on_fail_help": ("where to go when the check fails — an earlier (ancestor) node id to redo,"
@@ -136,9 +136,9 @@ EN: dict[str, str] = {
 KO: dict[str, str] = {
     "graph.new_match": "에이전트가 제출한 그래프 — 회고에서 new_type 으로 라이브러리에 남긴다",
     "graph.retro_do": ("wf_retro() 로 유형 누적 근거·제안을 받고,"
-                       " 판정(no_change|update_type|new_type)을 기록한 뒤 이슈가 있으면 `wf retro` 로"
-                       " 시작하는 코멘트(라이브러리 diff 포함)를 남긴다. 개선할 것이 없으면"
-                       " wf_retro(verdict=\"skip\", reason=사유) 로 건너뛴다."),
+                       " wf_retro(verdict=no_change|update_type|new_type|skip) 로 판정을 기록한다."
+                       " 개선할 것이 없으면 wf_retro(verdict=\"skip\", reason=사유) 로 건너뛴다."
+                       " 이슈가 있으면 `wf retro` 로 시작하는 코멘트(라이브러리 diff 포함)를 남긴다."),
     "graph.legend": "✔ done ▶ ready · pending ⊘ skipped ⏸ waiting (external) ↺ back ✗ 실패 시",
     "graph.legend_box": " ⛔ stall 🔧 skill ┆=접힘",
     "graph.on_fail_help": ("check 가 실패하면 갈 곳 — 다시 할 앞(조상) 노드 id, 또는 제자리면 `retry`."
